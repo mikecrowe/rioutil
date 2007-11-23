@@ -1,3 +1,26 @@
+Aug  04 2006:
+	- Added real debian packaging from debian.
+Oct  12 2005:
+	- Removed libtool for now since it is more of a problem than a benefit.
+Aug  30 2005:
+	- Delete now works with rio nitrus.
+	- rioutil should no longer time out talking to the device on the call
+	subsequent to an add call.
+	- Updated mp3.c for better mpeg parsing.
+Jul  03 2005:
+	- Added preliminary nitrus support. Uploading/downloading work to a degree as does delete.
+Feb  23 2005:
+	- Added prebinding for darwin/macosx hosts
+Feb  22 2005:
+	- Removed empty bsd_driver folder. (use libusb)
+	- Removed depricated macosx and usbdevfs driver. (use libusb)
+	- Updated rios.c linux rio driver. (for use with --without-libusb on linux)
+Feb  03 2005:
+	- Updated id3/mp3 code.
+	- Changed API slightly. More will be changed before the 1.5 release.
+	- rioutil's internal file list is now updated after uploads as well
+	as deletes.
+	- Added first_free_file_rio to API.
 Aug  23 2004:
 	- Fixed a major bug in id3.c that affected linux users with a file not
 	found error. Also fixed in main.c. Thanks to Sarah Hitchens for

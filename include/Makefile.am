@@ -1,2 +1,2 @@
 include_HEADERS = rio.h
-noinst_HEADERS = driver.h rio_internal.h rio_usb.h usbdevfs.h usbdrv.h
+noinst_HEADERS = driver.h rioi.h rio_ids.h

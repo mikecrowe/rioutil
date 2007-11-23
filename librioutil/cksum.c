@@ -1,5 +1,5 @@
 /*
- * $Id: cksum.c,v 1.3 2004/01/10 09:20:19 hjelmn Exp $
+ * $Id: cksum.c,v 1.8 2006/02/15 22:54:07 hjelmn Exp $
  */
 
 /*
@@ -17,68 +17,51 @@
  *
  */
 
-#if defined (HAVE_CONFIG_H)
-#include "config.h"
-#endif
-
-#include "rio_internal.h"
-
-#include <sys/types.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
-#ifdef linux
-#include <byteswap.h>
-#include <endian.h>
-#elif defined(__FreeBSD__) || defined(__MacOSX__)
-#include <machine/endian.h>
-#else
-#include <sys/endian.h>
-#include <sys/bswap.h>
-#endif
+#include "rioi.h"
 
 #define CRC32POLY 	0x04C11DB7
 
 /*
  * 1024 byte look up table.
  */
-void crc32_init_table(void);
-static u_int32_t *crc32_table = NULL;
+static void crc32_init_table(void);
 
-void crc32_init_table(void)
-{
-	u_int32_t i, j, r;
+static u_int32_t crc32_table[256];
 
-	crc32_table = (u_int32_t *)malloc(sizeof(u_int32_t) * 256);
-	
-	for (i = 0 ; i < 256 ; i++)
-	{
-		r = i << 24;
-		for (j = 0; j < 8; j++)
-		{
-			if (r & 0x80000000)
-				r = (r << 1) ^ CRC32POLY;
-			else
-				r <<= 1;
-		}
-		crc32_table[i] = r;
-	}
-	return;
+static int crc32_initialized = 0;
+
+static void crc32_init_table(void) {
+  u_int32_t i, j, r;
+
+  crc32_initialized = 1;
+
+  for (i = 0 ; i < 256 ; i++) {
+    r = i;
+
+    for (j = 0; j < 8; j++) {
+      if (r & 1)
+        r = (r >> 1) ^ CRC32POLY;
+      else
+        r >>= 1;
+    }
+
+    crc32_table[i] = r;
+  }
 }
 
-unsigned int crc32_rio(unsigned char *buf, unsigned int length)
-{
-    unsigned long crc = 0;
-    int i;
-	
-    if (crc32_table == NULL)
-	crc32_init_table();
-	
-    for (i = 0 ; i < length ; i++)
-	crc = (crc<<8) ^ crc32_table[((crc >> 24) ^ buf[i]) & 0xff];
-    
-#if BYTE_ORDER == BIG_ENDIAN
-    crc = bswap_32(crc);
-#endif /* BIG_ENDIAN */
+u_int32_t crc32_rio (u_int8_t *buf, size_t length) {
+  unsigned long crc = 0;
+  int i;
 
-    return crc;
+  if (crc32_initialized == 0)
+    crc32_init_table();
+
+  for (i = 0 ; i < length ; i++)
+    crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xff];
+
+  crc = big32_2_arch32 (crc);
+  return crc;
 }

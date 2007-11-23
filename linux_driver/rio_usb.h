@@ -1,6 +1,8 @@
 /*  ----------------------------------------------------------------------
+    Copyright (C) 2001-2006 Nathan Hjelmn <hjelmn@users.sourceforge.net>
 
-    Copyright (C) 2000  Cesar Miquel  (miquel@df.uba.ar)
+    Based of of rio500 driver:
+      Copyright (C) 2000  Cesar Miquel  (miquel@df.uba.ar)
 
     Header for rio kernel driver.
 
@@ -22,7 +24,7 @@
 #if !defined (_RIO_USB_H)
 #define _RIO_USB_H
 
-#include <linux/types.h>
+#include <sys/types.h>
 
 /* second generation players (199?) */
 #define VENDOR_DIAMOND00  0x0841
@@ -41,11 +43,11 @@
 #define PRODUCT_RIOS35    0x5007
 #define PRODUCT_RIO900    0x5008
 #define PRODUCT_RIOS30    0x5009
-#define PRODUCT_RIOFUSE   0x500d
-#define PRODUCT_RIOCHIBA  0x500e
-#define PRODUCT_RIOCALI   0x500f
+#define PRODUCT_FUSE      0x500d
+#define PRODUCT_CHIBA     0x500e
+#define PRODUCT_CALI      0x500f
+#define PRODUCT_CALI256   0x503f
 #define PRODUCT_RIOS11    0x5010
-
 
 #define PRODUCT_RIORIOT   0x5202
 
@@ -71,4 +73,3 @@ struct RioCommand {
 #define RIO_DIR_IN                             0x1
 
 #endif
-

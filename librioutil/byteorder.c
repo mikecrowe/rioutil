@@ -1,6 +1,6 @@
 /**
- *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.1.0 byteorder.c
+ *   (c) 2001-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.5.0 byteorder.c
  * 
  *   Functions to handle big-endian machines.   
  *
@@ -19,37 +19,31 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  **/
 
-#include "rio_internal.h"
+#include "rioi.h"
 
 /*
-  Swap le rio_file to machine architecture
+  Swap rio_file_t to machine endianness (or back)
 */
-void file_to_me (rio_file_t *data)
-{
-#if BYTE_ORDER == BIG_ENDIAN
-    data->file_no     = bswap_32(data->file_no);
-    data->start       = bswap_32(data->start);
-    data->size        = bswap_32(data->size);
-    data->time        = bswap_32(data->time);
-    data->mod_date    = bswap_32(data->mod_date);
-    data->bits        = bswap_32(data->bits);
-    data->type        = bswap_32(data->type);
-    data->foo3        = bswap_32(data->foo3);
-    data->foo4        = bswap_32(data->foo4);
-    data->sample_rate = bswap_32(data->sample_rate);
-    data->bit_rate    = bswap_32(data->bit_rate);
-#endif
+void file_to_me (rio_file_t *data) {
+  data->file_no     = little32_2_arch32(data->file_no);
+  data->start       = little32_2_arch32(data->start);
+  data->size        = little32_2_arch32(data->size);
+  data->time        = little32_2_arch32(data->time);
+  data->mod_date    = little32_2_arch32(data->mod_date);
+  data->bits        = little32_2_arch32(data->bits);
+  data->type        = little32_2_arch32(data->type);
+  data->foo3        = little32_2_arch32(data->foo3);
+  data->foo4        = little32_2_arch32(data->foo4);
+  data->sample_rate = little32_2_arch32(data->sample_rate);
+  data->bit_rate    = little32_2_arch32(data->bit_rate);
 }
 
 /*
-  Swap le rio_mem to machine architecture
+  Swap rio_mem_t to machine endianness (or back)
 */
-void mem_to_me (rio_mem_t *data)
-{
-#if BYTE_ORDER == BIG_ENDIAN
-    data->size   = bswap_32(data->size);
-    data->used   = bswap_32(data->used);
-    data->free   = bswap_32(data->free);
-    data->system = bswap_32(data->system);
-#endif
+void mem_to_me (rio_mem_t *data) {
+  data->size   = little32_2_arch32(data->size);
+  data->used   = little32_2_arch32(data->used);
+  data->free   = little32_2_arch32(data->free);
+  data->system = little32_2_arch32(data->system);
 }

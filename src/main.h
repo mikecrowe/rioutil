@@ -48,13 +48,34 @@ static const char *sleepStates[5] = {
   "Never", "1 Min", "2 Mins", "5 Mins", "15 Mins"
 };
 
-void printfiles(file_list *);
-void usage(void);
-void progress(int x, int X, void *ptr);
-void version(void);
+/* minimal stack structure for uploading songs */
+struct _song {
+  int mem_unit;
+  
+  char *title;
+  char *artist;
+  char *album;
+    
+  char *filename;
 
-int add_track(rio_instance_t *rio);
-int delete_track(rio_instance_t *rio, char *dopt, u_int32_t mflag);
-int download_track(rio_instance_t *rio, char *copt, u_int32_t mflag);
+  int recursive_depth;
+};
+
+struct stack_item {
+  struct _song *data;
+
+  struct stack_item *next;
+};
+
+struct upload_stack {
+  struct stack_item *head, *tail;
+};
+
+void printfiles(file_list *);
+void progress(int x, int X, void *ptr);
+
+int add_tracks (rio_instance_t *rio);
+int delete_tracks (rio_instance_t *rio, char *dopt, u_int32_t mflag);
+int download_tracks (rio_instance_t *rio, char *copt, u_int32_t mflag);
 
 #endif

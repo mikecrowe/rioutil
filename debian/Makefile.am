@@ -1,1 +1,11 @@
-EXTRA_DIST=build_dpkg.sh.in control.in
+NULL =
+EXTRA_DIST = \
+	changelog \
+	control \
+	copyright \
+	dirs \
+	docs \
+	lintian.overrides \
+	rules \
+	$(NULL)
+

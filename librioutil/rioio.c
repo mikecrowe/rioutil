@@ -1,6 +1,6 @@
 /**
- *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4 rioio.c 
+ *   (c) 2001-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.5.0 rioio.c 
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,27 +17,35 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  **/
 
-#include "config.h"
-
 #include <stdio.h>
 #include <string.h>
 
 #include <errno.h>
+#include <unistd.h>
 
-#include "rio_internal.h"
+#include "rioi.h"
 #include "driver.h"
 
-int read_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size) {
+int read_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, u_int32_t block_size) {
   int ret;
-  char *buffer;
+  unsigned char *buffer;
+  int i;
 
   buffer = (ptr) ? ptr : rio->buffer;
+  
+  if (return_type_rio (rio) == RIONITRUS && block_size == RIO_FTS)
+    block_size = 64;
 
-  ret = read_bulk (rio, buffer, size);
+  if (size > block_size)
+    for (i = 0 ; i < size ; i += block_size)
+      ret = read_bulk (rio, &buffer[i], block_size);
+  else
+    ret = read_bulk (rio, buffer, size);
+
   if (ret < 0)
     return ret;
 
-  rio_log_data (rio, "In", buffer,size);
+  rio_log_data (rio, "In", buffer, size);
   
   return URIO_SUCCESS;
 }
@@ -46,12 +54,16 @@ int write_cksum_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksu
   unsigned int *intp;
   int ret;
 
-  memset(rio->buffer, 0, 12);
+  memset(rio->buffer, 0, 64);
   intp = (unsigned int *)rio->buffer;
 
-  if (ptr != NULL)
-    intp[2] = crc32_rio(ptr, size);
-  
+  if (strcmp (cksum_hdr, "CRIOINFO") != 0) {
+    if (ptr != NULL && return_type_rio (rio) != RIONITRUS)
+      intp[2] = crc32_rio(ptr, size);
+    else
+      intp[2] = 0x00800000;
+  }
+
   memcpy (rio->buffer, cksum_hdr, 8);
 
   ret = write_bulk (rio, rio->buffer, 64);
@@ -79,8 +91,9 @@ int write_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksu
     if ((ret = write_cksum_rio (rio, ptr, size, cksum_hdr)) != URIO_SUCCESS)
       return ret;
   }
-  
-  ret = write_bulk (rio, ptr, size);
+
+  ret = write_bulk (rio, ptr, size);    
+
   if (ret < 0)
     return ret;
   
@@ -90,11 +103,11 @@ int write_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksu
     usleep(1000);
   }
   
-  ret = read_block_rio (rio, NULL, 64);
+  ret = read_block_rio (rio, NULL, 64, RIO_FTS);
   if (ret < 0)
     return ret;
   
-  if ( (cksum_hdr) && strstr(cksum_hdr, "CRIODATA") && (strstr(rio->buffer, "SRIODATA") == NULL) ) {
+  if ( (cksum_hdr) && strstr(cksum_hdr, "CRIODATA") && (strstr((char *)rio->buffer, "SRIODATA") == NULL) ) {
     rio_log (rio, -EIO, "second SRIODATA not found\n");
     return -EIO;
   }
@@ -114,21 +127,16 @@ int send_command_rio (rios_t *rio, int request, int value, int index) {
   
   if (rio->debug > 1) {
     rio_log (rio, 0, "\nCommand:\n");
-    rio_log (rio, 0, "len: 0x%04x rt: 0x%02x rq: 0x%02x va: 0x%04x id: 0x%04x\n", 
-	     0x0c,
-	     0x00,
-	     request,
-	     value,
-	     index
-	     );
+    rio_log (rio, 0, "len: 0x0c rt: 0x00 rq: 0x%02x va: 0x%04x id: 0x%04x\n", 
+	     request, value, index);
   }
 
-  if (control_msg(rio, RIO_DIR_IN, request, value, index, 0x0c, rio->cmd_buffer) < 0)
+  if (control_msg(rio, request, value, index, 0x0c, rio->cmd_buffer) < 0)
     return -ENODEV;
   
   rio_log_data (rio, "Command", rio->cmd_buffer, 0xc);
 
-  if (rio->cmd_buffer[0] != 0x1 && request != 0x66) {
+  if (rio->cmd_buffer[0] != 0x1 && request != 0x66 && request != 0x61) {
     cretry++;
     rio_log (rio, -1, "Device did not respond to command. Retrying..");
 
@@ -143,9 +151,8 @@ int send_command_rio (rios_t *rio, int request, int value, int index) {
 int abort_transfer_rio(rios_t *rio) {
   int ret;
   
-  /* what would brian boitano do? */
   memset(rio->buffer, 0, 12);
-  sprintf(rio->buffer, "CRIOABRT");
+  sprintf((char *)rio->buffer, "CRIOABRT");
   
   /* write an abort to the rio */
   ret = write_bulk (rio, rio->buffer, 64);

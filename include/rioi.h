@@ -1,6 +1,6 @@
 /**
- *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4.6.3 rio_internal.h
+ *   (c) 2001-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.5.0 rioi.h
  *
  *   header file for librioutil internal functions
  *   
@@ -41,6 +41,9 @@
 #if defined (HAVE_CONFIG_H)
 #include "config.h"
 #endif
+
+#include <stdlib.h>
+#include <stdio.h>
 
 /***
 
@@ -143,6 +146,7 @@ Group ID                0x7c   ????            ????               64            
 #define UNKNOWN12  0x80 /* on S-Series, after command, can read 128B off the Rio */
 #define RIO_RIOTF  0x82 /* on Riot, Rio sends playlist */
 #define RIO_CHGIN  0x85 /* on S-Series and newer, change info about a file */
+#define RIO_NINFO  0x87 /* on nitrus, send nitrus song info */
 #define RIO_OVWRT  0x88 /* on S-Series and newer, replace a file */
 
 /***
@@ -172,6 +176,53 @@ Group ID                0x7c   ????            ????               64            
 
 #define UNLOCK(ret) do { unlock_rio (rio); return ret; } while (0);
 
+/* byte-sex */
+#if defined (linux) || defined(__GLIBC__)
+
+#include <endian.h>
+#include <byteswap.h>
+
+#elif defined (__MacOSX__)
+
+#include <architecture/byte_order.h>
+
+#define bswap_64(x) NXSwapLongLong(x)
+#define bswap_32(x) NXSwapLong(x)
+#define bswap_16(x) NXSwapShort(x)
+
+#elif defined (__NetBSD__)
+
+#define bswap_64(x) bswap64(x)
+#define bswap_32(x) bswap32(x)
+#define bswap_32(x) bswap16(x)
+
+#elif defined (__FreeBSD__)
+
+#include <machine/endian.h>
+
+#define bswap_32(x) ((x >> 24) | (x & 0x00ff0000) >> 8 | (x & 0x0000ff00) << 8  | (x & 0x000000ff) << 24)
+#define bswap_16(x) ((x >> 8) | (x & 0x00ff) << 8)
+
+#else
+
+#include <sys/endian.h>
+#include <sys/bswap.h>
+
+#endif
+
+#if BYTE_ORDER==BIG_ENDIAN
+#define arch32_2_little32(x) bswap_32(x)
+#define little32_2_arch32(x) bswap_32(x)
+#define little16_2_arch16(x) bswap_16(x)
+#define big32_2_arch32(x) x
+#else
+#define arch32_2_little32(x) x
+#define little32_2_arch32(x) x
+#define little16_2_arch16(x) x
+#define big32_2_arch32(x) bswap_32(x);
+#endif
+
+
 /***
 
   Internal Structures
@@ -186,7 +237,7 @@ typedef struct _rio_mem {
   
   u_int32_t foobar[8];
   
-  u_int8_t name[64];
+  char     name[64];
   u_int8_t unk0[32];
   u_int8_t unk1[32];
   u_int8_t model[64]; /* Riot: Hard drive model acked at the end with 0x20 */
@@ -205,7 +256,7 @@ typedef struct _rio_desc {
   u_int8_t  unk3[48];
 
   /* 0x40 - 0x5f */
-  u_int8_t  name[32];
+  char      name[32];
 
   /* 0x60 - 0x6f */
   u_int8_t  serial_number[16];
@@ -296,16 +347,16 @@ typedef struct _rio_file {
   u_int8_t info1[64];
   
   /* 0x00c0 - 0x00ff */
-  u_int8_t name[64];
+  char     name[64];
   
   /* 0x0100 - 0x013f */
-  u_int8_t title[64];
+  char     title[64];
   
   /* 0x0140 - 0x017f */
-  u_int8_t artist[64];
+  char     artist[64];
   
   /* 0x0180 - 0x01bf */
-  u_int8_t album[64];
+  char     album[64];
     
   /* 0x01c0 - 0x0203 
   * Empty in the RIOT
@@ -363,12 +414,12 @@ typedef struct _rio_file {
   /* 0x02bc - 0x02cb 
    * This area is used in the RIOT for the genre select. 
    */
-  u_int8_t genre2[16];
+  u_int8_t genre2[22];
 
   /* 0x02cc - 0x02d1 
    * 'zeros' may be part of the 'genre' field 
    */
-  u_int8_t temp3[6];
+  /*  u_int8_t temp3[6]; */
 
   /* 0x02d2 - 0x02d5 
    * Year song was produced.  This field is used by the RIOT for
@@ -469,7 +520,7 @@ typedef struct _rio_prefs {
 
   u_int8_t unk4[48];
 
-  u_int8_t name[16];
+  char     name[16];
 
   /*
     i have only seen this set once
@@ -501,7 +552,7 @@ typedef struct _riot_rio_prefs {
   u_int8_t	random_state;	/* 0 or 1 */
   u_int8_t	contrast;	/* 9 to 0 */
   u_int8_t	light_state;	/* 0,1,2,3,4,5 off, 1 sec,
-				   /* 2 sec, 5 sec, 10 sec, on */
+				   2 sec, 5 sec, 10 sec, on */
   u_int8_t	sleep_time;	/* 0,1,2,5,15 mins */
   u_int8_t	unk4;
   u_int8_t	treble;		/* 0 to 12 default 6 */
@@ -518,7 +569,7 @@ typedef struct _riot_rio_prefs {
   
   u_int8_t	unk12[39];
   
-  u_int8_t	name[16];
+  char  	name[16];
   
   u_int8_t	type[16];
   
@@ -532,7 +583,7 @@ typedef struct _riot_rio_prefs {
 ***/
 
 void rio_log      (rios_t *rio, int error, char *format, ...);
-void rio_log_data (rios_t *rio, char *dir, char *data, int data_size);
+void rio_log_data (rios_t *rio, char *dir, unsigned char *data, int data_size);
 
 int  wake_rio     (rios_t *rio);
 int  try_lock_rio (rios_t *rio);
@@ -541,12 +592,15 @@ void unlock_rio   (rios_t *rio);
 /* rio.c : used to build a rios_t */
 int get_file_info_rio (rios_t *rio, rio_file_t *file, u_int8_t memory_unit, u_int16_t file_no);
 int get_memory_info_rio (rios_t *rio, rio_mem_t *memory, u_int8_t memory_unit);
-int first_free_file_rio (rios_t *rio, u_int8_t memory_unit);
 
 void free_info_rio (rios_t *rio);
+int return_generation_rio (rios_t *rio);
+int return_type_rio(rios_t *rio);
+void update_free_intrn_rio (rios_t *rio, u_int8_t memory_unit);
+float return_version_rio (rios_t *rio);
 
 /* rioio.c */
-int read_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size);
+int read_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, u_int32_t block_size);
 int write_cksum_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksum_hdr);
 int write_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksum_hdr);
 int abort_transfer_rio (rios_t *rio);
@@ -561,35 +615,26 @@ int downloadable_info (info_page_t *newInfo, char *file_name);
 int playlist_info (info_page_t *newInfo, char *file_name);
 int new_playlist_info (info_page_t *newInfo, char *file_name, char *name);
 
+/* file_list.c */
+int generate_flist_riomc (rios_t *rio, u_int8_t memory_unit);
+int generate_flist_riohd (rios_t *rio);
+int flist_add_rio (rios_t *rio, int memory_unit, info_page_t info);
+int flist_remove_rio (rios_t *rio, int memory_unit, int file_no);
+int size_flist_rio (rios_t *rio, int memory_unit);
+int flist_first_free_rio (rios_t *rio, int memory_unit);
+
+/* song_management.c */
+int do_upload (rios_t *rio, u_int8_t memory_unit, int addpipe, info_page_t info, int overwrite);
+int update_db_rio (rios_t *rio);
+
 /* cksum.c */
-unsigned int crc32_rio (unsigned char *, unsigned int);
+u_int32_t crc32_rio (u_int8_t *, size_t);
 
+/* hexdump.c */
+void pretty_print_block (unsigned char *, int, FILE *);
 
-#if defined (__FreeBSD__) || defined(__MacOSX__)
-u_int32_t bswap_32(u_int32_t);
-#elif defined (__NetBSD__)
-#define bswap_32(x) bswap32(x)
-#endif
-
-#ifndef HAVE_LIBGEN_H
+#ifndef HAVE_BASENAME
 char *basename(char *x);
-#endif
-
-/* byteorder stuff below */
-#if defined (linux)
-
-#include <endian.h>
-#include <byteswap.h>
-
-#elif defined (__FreeBSD__) || defined (__MacOSX__)
-
-#include <machine/endian.h>
-
-#else
-
-#include <sys/endian.h>
-#include <sys/bswap.h>
-
 #endif
 
 void file_to_me (rio_file_t *);

@@ -5,27 +5,22 @@ rioutil Supported Players:
  - Nike psa[play (Diamond MM version)
  - Rio S-Series (firmware update works. remember to run rioutil -m 0 -f after upgrading)
  - Rio Fuse/Chiba/Cali 
-no download support:
- - Rio Riot (Comming soon -- I hope)
+ - Rio Nitrus (mostly works)
 
+no download support:
+ - Rio Riot
  - Future flash players ... (REALLY EXPERIMENTAL)
 
--- All memory expansion should work through -m option --
+-- All players' memory expansion should work through -m option --
 
 Unsupported Rio players:
 Rio 500 - please try rio500.sf.net.
 Rio One - mount as fat filesystem.
 Rio Karma - unknown
-Rio Nitrus - unknown
 Phillips psa[play - unknown
 
-If you have any questions or comments please email:
+If you have any questions, comments, or patches please email:
 hjelmn at users dot sourceforge dot net
-
-If you have a patch please email it to:
-hjelmn at cs dot unm dot edu
-
-For more information about me my webpage is located at http://www.cs.unm.edu/~hjelmn.
 
 ** NOTE **
 - If compiling from cvs, use ./autogen.sh instead of ./configure.
@@ -68,23 +63,10 @@ work.
  - For darwin 5.x, 6.x or macos 10.x.x you will want libusb 1.6 or newer.
 
 ******************************************************************************
-** It is highly likely that if you are using linux you will want to compile **
-** with usbdevfs support!                                                   **
-******************************************************************************
-This can be accomplished by running:
-% ./configure --with-usbdevfs
-
-*** usbdevfs NOTES *** :
- - Due to permission problems with usbdevfs, you will have to run rioutil as
-  superuser (unless using libusb).
- - You cannot use usbdevfs support if the modified rio500 module that comes
-  with this distro is installed (check with lsmod).
-
-******************************************************************************
 ** Instructions if you don't want to use usbdevfs (linux)                   **
 ** (I'll create a patch one of these days)                                  **
 ******************************************************************************
-% ./configure --without-libusb --without-usbdevfs
+% ./configure --without-usbdevfs
 % make
 
 (as root)

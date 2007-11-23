@@ -1,6 +1,6 @@
 /**
- *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4.1 rio.h
+ *   (c) 2001-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.5.0 rio.h
  *
  *   header file for librioutil
  *   
@@ -29,7 +29,7 @@
 
 enum rios { RIO600, RIO800, PSAPLAY, RIO900, RIOS10, RIOS50,
 	    RIOS35, RIOS30, RIOFUSE, RIOCHIBA, RIOCALI,
-	    RIORIOT, RIOS11, UNKNOWN };
+	    RIORIOT, RIOS11, RIONITRUS, UNKNOWN };
 
 /* other defines */
 #define MAX_MEM_UNITS   2   /* there are never more than 2 memory units */
@@ -94,26 +94,30 @@ typedef struct _file_list {
 
   char year[5];
   char genre[17];
+
+  int track_number;
 } file_list;
+
+typedef file_list flist_rio_t;
 
 typedef struct _mem_list {
     u_int32_t size;
     u_int32_t free;
     char name[32];
 
-    file_list *files;
+    flist_rio_t *files;
 
     u_int32_t total_time;
     u_int32_t num_files;
 } mem_list;
 
+typedef mem_list mlist_rio_t;
+
 typedef struct _rio_info {
   mem_list memory[MAX_MEM_UNITS];
   
-  /*
-    all of these values can be changed and set
-  */
-  unsigned char name[16];
+  /* these values can be changed an sent to the rio */
+  char name[16];
   
   u_int8_t  light_state;
   u_int8_t  repeat_state;
@@ -127,13 +131,10 @@ typedef struct _rio_info {
   u_int8_t  random_state;
   u_int8_t  the_filter_state;
   
-  /*
-    Can not be manipulated.
-  */
-  /* this is most likely only 1 or 2 */
-  u_int8_t  total_memory_units;
+  /* these values can not be manipulated */
+  u_int8_t  total_memory_units; /* 1 or 2 */
   
-  float version;
+  float firmware_version;
   u_int8_t serial_number[16];
 } rio_info_t;
 
@@ -162,51 +163,60 @@ typedef rios_t rio_instance_t;
 /*
   rio funtions:
 */
-int     open_rio    (rios_t *rio, int number, int debug, int fill_structures);
-void    close_rio   (rios_t *rio);
+int open_rio (rios_t *rio, int number, int debug, int fill_structures);
+void close_rio (rios_t *rio);
 
-int     set_info_rio      (rios_t *rio, rio_info_t *info);
-int     add_song_rio      (rios_t *rio, u_int8_t memory_unit, char *file_name,
-			   char *artist, char *title, char *album);
-int upload_from_pipe_rio  (rios_t *rio, u_int8_t memory_unit, int addpipe, char *name, char *artist,
-			   char *album, char *title, int mp3, int bitrate, int samplerate);
-int     delete_file_rio   (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno);
-int     format_mem_rio    (rios_t *rio, u_int8_t memory_unit);
-int     update_rio        (rios_t *rio, char *file_name);
-int     download_file_rio (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno, char *fileName);
-void    set_progress_rio  (rios_t *rio, void (*f)(int x, int X, void *ptr), void *ptr);
+int set_info_rio (rios_t *rio, rio_info_t *info);
+int add_song_rio (rios_t *rio, u_int8_t memory_unit, char *file_name, char *artist, char *title, char *album);
+int download_file_rio (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno, char *fileName);
+int upload_from_pipe_rio (rios_t *rio, u_int8_t memory_unit, int addpipe, char *name, char *artist,
+			  char *album, char *title, int mp3, int bitrate, int samplerate);
+int delete_file_rio (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno);
+int format_mem_rio (rios_t *rio, u_int8_t memory_unit);
 
-/* new functions 8-8-2001 */
-int             update_info_rio      (rios_t *rio);
-rio_info_t     *return_info_rio      (rios_t *rio);
+/* upgrade the rio's firmware from a file */
+int firmware_upgrade_rio (rios_t *rio, char *file_name);
 
-/* new as of 01-20-2004 */
-/* Works only with newer Rios (S-Series or newer) */
+/* update the rio structure's internal info structure */
+int update_info_rio (rios_t *rio);
+/* store a copy of the rio's internal info structure in info */
+int get_info_rio (rios_t *rio, rio_info_t **info);
+
+/* sets the progress callback function */
+void set_progress_rio  (rios_t *rio, void (*f)(int x, int X, void *ptr), void *ptr);
+
+/* These only work with S-Series or newer Rios */
 int create_playlist_rio (rios_t *rio, char *name, int songs[], int memory_units[], int nsongs);
 int overwrite_file_rio (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno, char *filename);
 int return_serial_number_rio (rios_t *rio, u_int8_t serial_number[16]);
+
+
+/* Added to API 02-02-2005 */
+/* Returns the file number that will be assigned to the next file uploaded. */
+int first_free_file_rio (rios_t *rio, u_int8_t memory_unit);
 
 /* library info */
 char          *return_conn_method_rio(void);
 
 /*
-  information on memory:
+  retrieve information on the rio's memory units
 
   memory_unit is an integer between 0 and MAX_MEM_UNITS - 1
 */
-u_int8_t   return_mem_units_rio (rios_t *rio);
-u_int32_t  return_free_mem_rio  (rios_t *rio, u_int8_t memory_unit);
-u_int32_t  return_used_mem_rio  (rios_t *rio, u_int8_t memory_unit);
-u_int32_t  return_total_mem_rio (rios_t *rio, u_int8_t memory_unit);
-u_int32_t  return_num_files_rio (rios_t *rio, u_int8_t memory_unit);
-u_int32_t  return_time_rio      (rios_t *rio, u_int8_t memory_unit);
+int return_mem_units_rio (rios_t *rio);
+int return_free_mem_rio (rios_t *rio, u_int8_t memory_unit);
+int return_used_mem_rio (rios_t *rio, u_int8_t memory_unit);
+int return_total_mem_rio (rios_t *rio, u_int8_t memory_unit);
+int return_num_files_rio (rios_t *rio, u_int8_t memory_unit);
+int return_time_rio (rios_t *rio, u_int8_t memory_unit);
 
+/* store a copy of the rio's file list in flist */
+int return_flist_rio (rios_t *rio, u_int8_t memory_unit, u_int8_t list_flags, flist_rio_t **flist);
 
-file_list *return_list_rio      (rios_t *rio, u_int8_t memory_unit, u_int8_t list_flags);
-void       free_file_list       (file_list *s);
+void free_flist_rio (flist_rio_t *flist);
 
-char      *return_file_name_rio (rios_t *rio, u_int32_t song_id, u_int8_t memory_unit);
-u_int32_t  return_file_size_rio (rios_t *rio, u_int32_t song_id, u_int8_t memory_unit);
+char *return_file_name_rio (rios_t *rio, u_int32_t song_id, u_int8_t memory_unit);
+int return_file_size_rio (rios_t *rio, u_int32_t song_id, u_int8_t memory_unit);
 int return_type_rio (rios_t *rio);
 
 #endif /* _RIO_H */

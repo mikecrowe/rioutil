@@ -65,9 +65,6 @@ cat file.mp3 | rioutil --artist "Foo" --pipe 1 file.mp3 128 44100
 \fB\-u\fR, \fB\-\-update=string\fR
 special upload function for installing new firmware. argument is a .lok file.
 .TP
-\fB\-p\fR, \fB\-\-screen=string\fR
-special upload function to change the startup screen (FUTURE feature)
-.TP
 \fB\-s\fR, \fB\-\-artist=string\fR
 specify the artist of the track to be uplaoded. 63 Chars MAX
 .TP
@@ -109,9 +106,9 @@ works with update and format commands
 .SH AUTHOR
 Written by Nathan Hjelm.
 .SH REPORTING BUGS
-Report bugs to <hjelmn@unm.edu>.
+Report bugs to <hjelmn@users.sourceforge.net>.
 .SH COPYRIGHT
-Copyright\(co 2003 Nathan Hjelm.
+Copyright\(co 2001-2005 Nathan Hjelm.
 .br
 This is free software; see the source for copying conditions. There is NO
 warranty.

@@ -1,4 +1,4 @@
-%define ver     1.4.7
+%define ver     1.5.0
 %define rel     0
 %define prefix  /usr/local
 %define name    rioutil

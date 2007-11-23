@@ -1,7 +1,6 @@
-/* include/config.h.in.  Generated from configure.in by autoheader.  */
+/* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
 #undef WITH_LIBUSB
-#undef WITH_USBDEVFS
 #undef __MacOSX__
 
 
@@ -38,17 +37,11 @@
 /* Define to 1 if you have the `usb' library (-lusb). */
 #undef HAVE_LIBUSB
 
-/* Define to 1 if you have the `z' library (-lz). */
-#undef HAVE_LIBZ
-
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
-/* Define to 1 if you have the <linux/usbdevice_fs.h> header file. */
-#undef HAVE_LINUX_USBDEVICE_FS_H
-
-/* Define to 1 if you have the `memmem' function. */
-#undef HAVE_MEMMEM
+/* Define to 1 if you have the `memcmp' function. */
+#undef HAVE_MEMCMP
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -77,9 +70,6 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the <sys/byteswap.h> header file. */
-#undef HAVE_SYS_BYTESWAP_H
-
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #undef HAVE_SYS_IOCTL_H
 
@@ -91,9 +81,6 @@
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
 
 /* Name of package */
 #undef PACKAGE
@@ -118,6 +105,3 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Define to `long' if <sys/types.h> does not define. */
-#undef off_t

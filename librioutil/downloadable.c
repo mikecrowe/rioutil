@@ -1,6 +1,6 @@
 /**
- *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.0.3 downloadable.c 
+ *   (c) 2001-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.5.0 downloadable.c 
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,71 +17,35 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  **/
 
-#include <string.h>
-#include <errno.h>
-
-#include "config.h"
-
-#ifdef HAVE_LIBGEN_H
-#include <libgen.h>
-#endif
-
 #include <stdlib.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
+#include <string.h>
 
-#include "rio_internal.h"
+#include "rioi.h"
 
 /*
   downloadable_info:
-     Function takes in a file name and returns a
-  complete Rio header struct that allows the file to
-  be downloaded from the Rio.
+      Create an info page for the file pointed to file_name. The resulting
+    info page will enable to file to be downloaded from the device but the
+    file will not be playable on the device.
 */
-int downloadable_info (info_page_t *newInfo, char *file_name)
-{
-    rio_file_t *misc_file;
-    struct stat statinfo;
-    char *tmp1, *tmp2;
-
-    if (stat(file_name, &statinfo) < 0){
-	newInfo->data = NULL;
-	return -1;
-    }
+int downloadable_info (info_page_t *newInfo, char *file_name) {
+  rio_file_t *misc_file = newInfo->data;
+  
+  newInfo->skip = 0;
+  
+  if (strstr(file_name, ".bin") == NULL) {
+    strncpy((char *)misc_file->title, (char *)misc_file->title, 63);
     
-    misc_file = (rio_file_t *)malloc(sizeof(rio_file_t));
-    memset(misc_file, 0, sizeof(rio_file_t));
-    misc_file->size = statinfo.st_size;
+    misc_file->bits     = 0x11000110; /* this matches rio taxi file bits */
+    misc_file->type     = 0x54415849; /* TAXI. matches rio taxi file type */
+  } else {
+    /* probably a special file */
+    misc_file->bits     = 0x20800590;
+    misc_file->type     = 0x46455250;
+    misc_file->mod_date = 0x00000000;
     
-    misc_file->mod_date = time(NULL);
-    
-    tmp1 = strdup (file_name);
-    tmp2 = basename(tmp1);
-    
-    strncpy((char *)misc_file->name , tmp2, 63);
-
-    free (tmp1);
-    
-    newInfo->skip = 0;
-    
-    if (strstr(file_name,".bin") == 0) {
-	strncpy((char *)misc_file->title, tmp2, 63);
-
-	misc_file->bits     = 0x10000591;
-    } else {
-	/* probably a special file */
-	misc_file->bits     = 0x20800590;
-	misc_file->type     = 0x46455250;
-	misc_file->mod_date = 0x00000000;
-
-	strncpy((char *)misc_file->info1, "system", 6);
-    }
-    
-    newInfo->data = misc_file;
-    
-    return URIO_SUCCESS;
+    strncpy((char *)misc_file->info1, "system", 6);
+  }
+  
+  return URIO_SUCCESS;
 }

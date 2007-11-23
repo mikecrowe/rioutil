@@ -1,6 +1,6 @@
 /**
- *   (c) 2003-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.0r id3.c 
+ *   (c) 2003-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.1 id3.c 
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,12 +17,6 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  **/
 
-#if defined(HAVE_CONFIG_H)
-#include "config.h"
-#endif
-
-#include "rio_internal.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -38,39 +32,85 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define ID3_DEBUG 1
-
+#include "rioi.h"
 #include "genre.h"
 
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
 
-#define ID3_TITLE             0
-#define ID3_TALT              1
-#define ID3_ARTIST            2
-#define ID3_ALBUM             3
-#define ID3_TRACK             4
-#define ID3_YEAR              5
-#define ID3_GENRE             6
-#define ID3_ENCODER           7
-#define ID3_COMMENT           8
-#define ID3_BPM               11
-#define ID3_YEARNEW           12
-#define ID3_DISKNUM           13
+#define ID3FLAG_EXTENDED 0x40
+#define ID3FLAG_FOOTER   0x10
+
+                       /* v2.2 v2.3 */
+char *ID3_TITLE[2]   = {"TT2", "TIT2"};
+char *ID3_ARTIST[2]  = {"TP1", "TPE1"};
+char *ID3_ALBUM[2]   = {"TAL", "TALB"};
+char *ID3_TRACK[2]   = {"TRK", "TRCK"};
+char *ID3_YEAR[2]    = {"TYE", "TYER"};
+char *ID3_GENRE[2]   = {"TCO", "TCON"};
+char *ID3_ENCODER[2] = {"TEN", "TENC"}; 
+char *ID3_COMMENT[2] = {"COM", "COMM"};
+char *ID3_BPM[2]     = {"TBP", "TBPM"};
+char *ID3_YEARNEW[2] = {"TYE", "TDRC"};
+char *ID3_DISC[2]    = {"TPA", "TPOS"};
+char *ID3_ARTWORK[2] = {"PIC", "APIC"};
 
 static int find_id3 (int version, FILE *fh, unsigned char *tag_data, int *tag_datalen,
 		     int *id3_len, int *major_version);
-static void parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datalen, int version,
-		       int id3v2_majorversion, int field, rio_file_t *mp3_file);
+static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datalen, int version,
+                                int id3v2_majorversion, rio_file_t *mp3_file);
+static int synchsafe_to_int (unsigned char *buf, int nbytes);
 
-static int synchsafe_to_int (char *buf, int nbytes) {
+static int synchsafe_to_int (unsigned char *buf, int nbytes) {
   int id3v2_len = 0;
+  int error = 0;
   int i;
 
   for (i = 0 ; i < nbytes ; i++) {
     id3v2_len <<= 7;
     id3v2_len += buf[i] & 0x7f;
+    if (buf[i] & 0xf0)
+      error = 1;
+  }
+
+  if (error) {
+    id3v2_len = 0;
+    for (i = 0 ; i < nbytes ; i++) {
+      id3v2_len <<= 8;
+      id3v2_len += buf[i] & 0xff;
+    }
+  }
+
+  return id3v2_len;
+}
+
+int id3v2_size (unsigned char data[14]) {
+  int major_version;
+  unsigned char id3v2_flags;
+  int id3v2_len = 0;
+  int id3v2_extendedlen = 0;
+  int head;
+
+  memcpy (&head, data, 4);
+  head = big32_2_arch32 (head);
+
+  if ((head & 0xffffff00) == 0x49443300) {
+    major_version = head & 0xff;
+    
+    id3v2_flags = data[5];
+    id3v2_len   = 10 + synchsafe_to_int (&data[6], 4);
+
+    if (id3v2_flags & ID3FLAG_EXTENDED) {
+      /* Skip extended header */
+      if (major_version != 3)
+	id3v2_len += synchsafe_to_int (&data[10], 4);
+      else
+	id3v2_len += big32_2_arch32 (((int *)&data[10])[0]);
+    }
+    
+    /* total length = 10 (header) + extended header length (flag 0x40) + id3v2len + 10 (footer, if present -- flag 0x10) */
+    id3v2_len += (id3v2_flags & ID3FLAG_FOOTER) ? 10 : 0;
   }
 
   return id3v2_len;
@@ -90,7 +130,7 @@ static int synchsafe_to_int (char *buf, int nbytes) {
 static int find_id3 (int version, FILE *fh, unsigned char *tag_data, int *tag_datalen,
 		     int *id3_len, int *major_version) {
     int head;
-    char data[10];
+    unsigned char data[10];
 
     char id3v2_flags;
     int  id3v2_len;
@@ -98,10 +138,7 @@ static int find_id3 (int version, FILE *fh, unsigned char *tag_data, int *tag_da
 
     fread(&head, 4, 1, fh);
     
-#if BYTE_ORDER == LITTLE_ENDIAN
-    head = bswap_32(head);
-#endif
-
+    head = big32_2_arch32(head);
 
     if (version == 2) {
       /* version 2 */
@@ -143,9 +180,7 @@ static int find_id3 (int version, FILE *fh, unsigned char *tag_data, int *tag_da
 	fread(&head, 1, 4, fh);
 	fseek(fh, -128, SEEK_END);
 	
-#if BYTE_ORDER == LITTLE_ENDIAN
-	head = bswap_32(head);
-#endif
+	head = big32_2_arch32(head);
       }
       
       /* version 1 */
@@ -160,69 +195,61 @@ static int find_id3 (int version, FILE *fh, unsigned char *tag_data, int *tag_da
     return 0;
 }
 
+static char *id3v1_string (unsigned char *unclean) {
+  int i;
+  static char buffer[31];
+
+  memset (buffer, 0, 31);
+
+  for (i = 0 ; i < 30 && unclean[i] != 0xff ; i++)
+    buffer[i] = unclean[i];
+
+  for (i = strlen (buffer) - 1 ; i >= 0 && buffer[i] == ' ' ; i--)
+    buffer[i] = '\0';
+
+  return buffer;
+}
+
 /*
   parse_id3
 */
 static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datalen, int version,
 				int id3v2_majorversion, rio_file_t *mp3_file) {
-  int data_type;
   int i, j;
-  int field;
-  char *slash, *dstp;
+  unsigned char *dstp;
+  char *slash;
 
   if (version == 2) {
-    /* field tags associated with id3v2 with major version <= 2 */
-    char *fields[]     = {"TT1", "TT2", "TP1", "TAL", "TRK", "TYE", "TCO",
-			  "TEN", "COM", "TLE", "TKE", NULL};
-    /* field tags associated with id3v2 with major version > 2 */
-    char *fourfields[] = {"TIT1", "TIT2", "TPE1", "TALB", "TRCK", "TYER", "TCON",
-			  "TENC", "COMM", "TLEN", "TIME", "TBPM", "TDRC", "TPOS",
-			  NULL};
-    
-    char *tag_temp;
-    char *sizeloc;
+    unsigned char *tag_temp;
     char genre_temp[4];
     char encoding[11];
-
+    char identifier[5];
+    int newv = (id3v2_majorversion > 2) ? 1 : 0;
+    
+    memset (identifier, 0, 5);
+    
     for (i = 0 ; i < tag_datalen ; ) {
-      int length = 0;
-      int tag_found = 0;
-      u_int8_t *tmp;
-
+      size_t length = 0;
+      
       fread (tag_data, 1, (id3v2_majorversion > 2) ? 10 : 6, fh);
       
       if (tag_data[0] == 0)
 	return;
       
+      memcpy (identifier, tag_data, newv ? 4 : 3);
+      
       if (id3v2_majorversion > 2) {
-	/* I can't find in the id3v2.3 spec where this is legal?
-	   iTunes seems to think it is */
-	if (strncmp (tag_data, "APIC", 4) == 0 || id3v2_majorversion == 4 ||
-	    strncmp (tag_data, "PRIV", 4) == 0)
-	  length = *((int *)&tag_data[4]);
-	else
+	/* id3v2.3 does not use synchsafe integers in frame headers. */
+	if (id3v2_majorversion == 3 || strcmp (identifier, "APIC") == 0 ||
+	    strcmp (identifier, "COMM") == 0 || strcmp (identifier, "COM ") == 0 ||
+	    strcmp (identifier, "GEOB")) {
+	  length = big32_2_arch32(((int *)tag_data)[1]);
+	} else
 	  length = synchsafe_to_int (&tag_data[4], 4);
-
-
-	for (field = 0 ; fourfields[field] != NULL ; field++)
-	  if (strncmp(tag_data, fourfields[field], 4) == 0) {
-	    tag_found = 1;
-	    break;
-	  }
 
 	i += 10 + length;
       } else {
-	if (strncmp (tag_data, "PIC", 3) == 0)
-	  length = (tag_data[3] << 16) | (tag_data[4] << 8) | tag_data[5];
-	else
-	  length = synchsafe_to_int (&tag_data[3], 3);
-
-	for (field = 0 ; fields[field] != NULL ; field++)
-	  if (strncmp(tag_data, fields[field], 3) == 0) {
-	    tag_found = 1;
-
-	    break;
-	  }
+	length = (tag_data[3] << 16) | (tag_data[4] << 8) | tag_data[5];
 
 	i += 6 + length;
       }
@@ -232,31 +259,26 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	break;
       } else if (length == 0)
 	continue;
-
-      if (tag_found == 0 || length < 2) {
+      
+      if (length < 2) {
 	fseek (fh, length, SEEK_CUR);
 
 	continue;
       }
 
+      if (length > 128) {
+	fseek (fh, length - 128, SEEK_CUR);
+	if (strcmp (identifier, "APIC") != 0 &&
+	    strcmp (identifier, "PIC") != 0)
+	  length = 128;
+      }
+
       memset (tag_data, 0, 128);
       fread (tag_data, 1, (length < 128) ? length : 128, fh);
 
-      if (length > 128)
-	fseek (fh, length - 128, SEEK_CUR);
-
       tag_temp = tag_data;
 
-      /* Scan past the language field in id3v2 */
-      if (field == ID3_COMMENT) {
-	tag_temp += 4;
-	length -= 4;
-
-	if (id3v2_majorversion > 2) {
-	  tag_temp++; length--;
-	}
-      }
-
+      /* Get the tag encoding */
       switch (*tag_temp) {
       case 0x00:
 	sprintf (encoding, "ISO-8859-1");
@@ -277,133 +299,89 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
       default:
 	sprintf (encoding, "ISO-8859-1");
       }
-      
-      for ( ; length && *tag_temp == '\0' ; tag_temp++, length--);
-      for ( ; length && *(tag_temp+length-1) == '\0' ; length--);
-      /*      length--; */
+
+      if (strcmp (identifier, "APIC") != 0 &&
+	  strcmp (identifier, "PIC") != 0) {
+	for ( ; length && *tag_temp == '\0' ; tag_temp++, length--);
+	for ( ; length && *(tag_temp+length-1) == '\0' ; length--);
+	/*      length--; */
+      }
 
       if (length <= 0)
 	continue;
 
       dstp = NULL;
-
-      switch (field) {
-      case ID3_TITLE:
-      case ID3_TALT:
-	dstp = mp3_file->title;
+      
+      if (strcmp (identifier, ID3_TITLE[newv]) == 0) {
+	dstp = (unsigned char *)mp3_file->title;
 	length = (length > 63) ? 63 : length;
-	break;
-      case ID3_ARTIST:
-	dstp = mp3_file->artist;
+      } else if (strcmp (identifier, ID3_ARTIST[newv]) == 0) {
+	dstp = (unsigned char *)mp3_file->artist;
 	length = (length > 63) ? 63 : length;
-	break;
-      case ID3_TRACK:
+      } else if (strcmp (identifier, ID3_TRACK[newv]) == 0) {
 	/* some id3 tags have track/total tracks in the TRK field */
-	slash = strchr (tag_temp, '/');
-
+	slash = strchr ((char *)tag_temp, '/');
+	
 	if (slash) *slash = 0;
-
-	mp3_file->trackno2 = strtol (tag_temp, NULL, 10);
-
+	
+	mp3_file->trackno2 = strtol ((char *)tag_temp, NULL, 10);
+	
 	if (slash) *slash = '/';
-	break;
-      case ID3_ALBUM:
-	dstp = mp3_file->album;
+      } else if (strcmp (identifier, ID3_ALBUM[newv]) == 0) {
+	dstp = (unsigned char *)mp3_file->album;
 	length = (length > 63) ? 63 : length;
-	break;
-      case ID3_YEAR:
-      case ID3_YEARNEW:
+      } else if (strcmp (identifier, ID3_YEARNEW[newv]) == 0 ||
+		 strcmp (identifier, ID3_YEAR[newv]) == 0) {
 	dstp = mp3_file->year2;
 	length = (length > 4) ? 4 : length;
-	break;
-      case ID3_GENRE:
-        if (tag_temp[0] != '(') {
+      } else if (strcmp (identifier, ID3_GENRE[newv]) == 0) {
+	if (tag_temp[0] != '(') {
 	  dstp = mp3_file->genre2;
-	  length = (length > 16) ? 16 : length;
-        } else {
-          /* 41 is right parenthesis */
-          for (j = 0 ; (*(tag_temp + 1 + j) != 41) ; j++) {
-            genre_temp[j] = *(tag_temp + 1 + j);
-          }
-          
-          genre_temp[j] = 0;
-          
-          if (atoi (genre_temp) > 147)
-            continue;
-          
-	  length = (strlen (genre_table[atoi(genre_temp)]) > 16) ? 16 : strlen (genre_table[atoi(genre_temp)]);
+	  length = (length > 22) ? 22 : length;
+	} else {
+	  /* 41 is right parenthesis */
+	  for (j = 0 ; (*(tag_temp + 1 + j) != 41) ; j++) {
+	    genre_temp[j] = *(tag_temp + 1 + j);
+	  }
+	  
+	  genre_temp[j] = 0;
+	  
+	  if (atoi (genre_temp) > 147)
+	    continue;
+	  
+	  length = (strlen (genre_table[atoi(genre_temp)]) > 22) ? 22 : strlen (genre_table[atoi(genre_temp)]);
 	  memmove (mp3_file->genre2, genre_table[atoi(genre_temp)], length);
-        }
-        break;
-      default:
+	}
+      } else
 	continue;
-      }
-
+      
       if (dstp)
-	strncpy (dstp, tag_temp, length);
-
-    }
-    
+	strncpy ((char *)dstp, (char *)tag_temp, length);
+    }    
   } else if (version == 1) {
-    for (field = 0 ; field < ID3_BPM ; field++) {
-      char *copy_from, *tmp;
-      
-      i = 29;
+    char *tmp;
 
-      switch (field) {
-      case ID3_TITLE:
-	copy_from = &tag_data[3];
-	dstp = mp3_file->title;
-	break;
-      case ID3_ARTIST:
-	copy_from = &tag_data[33];
-	dstp = mp3_file->artist;
-	break;
-      case ID3_ALBUM:
-	copy_from = &tag_data[63];
-	dstp = mp3_file->album;
-	break;
-      case ID3_COMMENT:
-	copy_from = &tag_data[93];
-	continue;
-      case ID3_TRACK:
-	if (tag_data[126] != 0xff)
-	  mp3_file->trackno2 = tag_data[126];
-	continue;
-      case ID3_GENRE:
-	if ((int)tag_data[127] >= genre_count ||
-	    (signed char)tag_data[127] == -1)
-	  continue;
-	
-	copy_from = genre_table[tag_data[127]];
-	i = (strlen (copy_from) > 17) ? 16 : (strlen (copy_from) - 1);
-	dstp = mp3_file->genre2;
-	break;
-      default:
-	continue;
-      }
-      
-      if ((signed char) copy_from[0] == -1)
-	continue;
-      
-      if (field != ID3_GENRE)
-	for (tmp = copy_from + i ; (*tmp == ' ' || (signed char)(*tmp) == -1 || *tmp == '\0') && i >= 0; tmp--, i--)
-	  *tmp = 0;
-      else
-	i = strlen(copy_from) - 1;
-      
-      if (i < 0)
-	continue;
-      
-      i++;
-      if (field == ID3_GENRE) {
-	memset (dstp, 0, 16);
-	strncpy (dstp, copy_from, (i < 16) ? i : 16);
-      } else {
-	memset (dstp, 0, 64);
-	strncpy (dstp, copy_from, (i < 64) ? i : 64);
-      }
+    if (strlen (mp3_file->title) == 0) {
+      tmp = id3v1_string (&tag_data[3]);
+      strncpy (mp3_file->title, tmp, strlen (tmp));
     }
+
+    if (strlen (mp3_file->artist) == 0) {
+      tmp = id3v1_string (&tag_data[33]);
+      strncpy (mp3_file->artist, tmp, strlen (tmp));
+    }
+
+    if (strlen (mp3_file->album) == 0) {
+      tmp = id3v1_string (&tag_data[63]);
+      strncpy (mp3_file->album, tmp, strlen (tmp));
+    }
+
+    if (strlen ((char *)mp3_file->genre2) == 0 && tag_data[127] != 0xff)
+      strncpy ((char *)mp3_file->genre2, genre_table[tag_data[127]], strlen (genre_table[tag_data[127]]));
+
+    if (mp3_file->trackno2 == 0)
+      if (tag_data[126] != 0xff)
+	mp3_file->trackno2 = tag_data[126];
   }
 }
 
@@ -431,22 +409,18 @@ int get_id3_info (char *file_name, rio_file_t *mp3_file) {
   /* Set the file descriptor at the end of the id3v2 header (if one exists) */
   fseek (fh, id3_len, SEEK_SET);
   
-  {
+  if (strlen (mp3_file->title) == 0) {
     char *tfile_name = strdup (file_name);
     char *tmp = (char *)basename(tfile_name);
     int i;
-    
-    memmove (mp3_file->name, tmp, (strlen(tmp) > 63) ? 63 : strlen(tmp));
 
     for (i = strlen(tmp) - 1 ; i > 0 ; i--)
       if (tmp[i] == '.') {
 	tmp[i] = 0;
 	break;
       }
-    
-    if (strlen (mp3_file->title) == 0)
-      memmove (mp3_file->title, tmp, (strlen(tmp) > 63) ? 63 : strlen(tmp));
 
+    memmove (mp3_file->title, tmp, (strlen(tmp) > 63) ? 63 : strlen(tmp));
     free (tfile_name);
   }
  

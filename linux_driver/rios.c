@@ -1,8 +1,10 @@
 /*
- * USB Diamond MM(r)/Sonic Blue(r) Rio(tm) linux driver 
+ * USB Diamond MM(r)/Sonic Blue(r)/DNNA(r) Rio(tm) linux driver 
  *
- * Nathan Hjelm <hjelmn@cs.unm.edu>
+ * Nathan Hjelm <hjelmn@users.sourceforge.net>
  *
+ * Feb 2005: v1.2
+ *    - Fuse/Chiba/Cali support
  * Dec 2002: v1.1
  *   - Riot and S-Series support
  * May 20 2001: v1.0
@@ -102,6 +104,28 @@ static int open_rio(struct inode *inode, struct file *file){
 	MOD_INC_USE_COUNT;
 	unlock_kernel();
 	return 0;
+}
+
+static int read_endpoint_rio (rio_usb_data *rio) {
+	int id_product = rio->dev->descriptor.idProduct;
+
+	if ( (id_product == PRODUCT_RIO600) ||
+	     (id_product == PRODUCT_RIO800) ||
+	     (id_product == PRODUCT_RIO900) ||
+	     (id_product == PRODUCT_RIORIOT) ||
+	     (id_product == PRODUCT_PSAPLAY) )
+		return 2;
+	else
+		return 1;
+}
+
+static int write_endpoint_rio (rio_usb_data *rio) {
+	int id_product = rio->dev->descriptor.idProduct;
+
+	if (id_product == PRODUCT_RIORIOT)
+		return 1;
+	else
+		return 2;
 }
 
 static int close_rio(struct inode *inode, struct file *file){
@@ -300,14 +324,9 @@ write_rio(struct file *file, const char *buffer,
 				return bytes_written ? bytes_written : -EINTR;
 			}
 
-			if (rio->dev->descriptor.idProduct == PRODUCT_RIORIOT)
-				result = usb_bulk_msg(rio->dev,
-						      usb_sndbulkpipe(rio->dev, 1),
-						      obuf, thistime, &partial, 5 * HZ);
-			else				
-				result = usb_bulk_msg(rio->dev,
-						      usb_sndbulkpipe(rio->dev, 2),
-						      obuf, thistime, &partial, 5 * HZ);
+			result = usb_bulk_msg(rio->dev,
+					      usb_sndbulkpipe(rio->dev, write_endpoint_rio (rio)),
+					      obuf, thistime, &partial, 5 * HZ);
 
 			dbg("write stats: result:%d thistime:%lu partial:%u\n",
 			     result, thistime, partial);
@@ -371,26 +390,10 @@ read_rio(struct file *file, char *buffer, size_t count, loff_t * ppos)
 		}
 		this_read = (count >= IBUF_SIZE) ? IBUF_SIZE : count;
 
-		if ((rio->dev->descriptor.idVendor == VENDOR_DIAMOND01) && 
-		    ( (rio->dev->descriptor.idProduct == PRODUCT_RIO600) ||
-		      (rio->dev->descriptor.idProduct == PRODUCT_RIO800) ||
-		      (rio->dev->descriptor.idProduct == PRODUCT_RIO900) ||
-		      (rio->dev->descriptor.idProduct == PRODUCT_RIORIOT) ||
-		      (rio->dev->descriptor.idProduct == PRODUCT_PSAPLAY) ) ) {
-		  
-			/* rio600, 800, 900, riot, nike psa[play */
-			result = usb_bulk_msg(rio->dev,
-					      usb_rcvbulkpipe(rio->dev, 2),
-					      ibuf, this_read, &partial,
-					      (int) (HZ * 16));
-		} else {
-
-			/* rio500, S-Series */
-			result = usb_bulk_msg(rio->dev,
-					      usb_rcvbulkpipe(rio->dev, 1),
-					      ibuf, this_read, &partial,
-					      (int) (HZ * 16));
-		}
+		result = usb_bulk_msg(rio->dev,
+				      usb_rcvbulkpipe(rio->dev, read_endpoint_rio (rio)),
+				      ibuf, this_read, &partial,
+				      (int) (HZ * 16));
 
 		dbg("read stats: result:%d this_read:%u partial:%u\n",
 		       result, this_read, partial);
@@ -442,6 +445,17 @@ static void *probe_rio(struct usb_device *dev, unsigned int ifnum,
 	char name[6];
 	int minor;
 
+	/* Bail if the Vendor is not recognized */
+	switch(dev->descriptor.idVendor){
+	case VENDOR_DIAMOND00:
+	case VENDOR_DIAMOND01:
+		break;
+	default:
+		err("probe_rio: Device not recognized by this driver");
+
+		return NULL;
+	}
+
 	switch(dev->descriptor.idProduct){
 	case PRODUCT_RIO500:
 	        info("USB Rio 500 found at address %d", dev->devnum);
@@ -457,6 +471,10 @@ static void *probe_rio(struct usb_device *dev, unsigned int ifnum,
 		break;
 	case PRODUCT_RIOS10:
 		info("USB Rio S10 found at address %d", dev->devnum);
+		
+		break;
+	case PRODUCT_RIOS11:
+		info("USB Rio S11 found at address %d", dev->devnum);
 		
 		break;
 	case PRODUCT_RIOS50:
@@ -498,6 +516,19 @@ static void *probe_rio(struct usb_device *dev, unsigned int ifnum,
 	case PRODUCT_RIOS11:
 		info("USB Rio S11/ESA found at address %d", dev->devnum);
 
+		break;
+	case PRODUCT_FUSE:
+		info("USB Rio Fuse found at address %d", dev->devnum);
+		
+		break;
+	case PRODUCT_CHIBA:
+		info("USB Rio Chiba found at address %d", dev->devnum);
+		
+		break;
+	case PRODUCT_CALI:
+	case PRODUCT_CALI256:
+		info("USB Rio Cali found at address %d", dev->devnum);
+		
 		break;
 	default:
 		err("probe_rio: Device not recognized by this driver");
@@ -591,6 +622,7 @@ static struct usb_device_id rio_id_table [] = {
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIO800    ) },	   /* Rio 800      */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_PSAPLAY   ) },	   /* Nike psaplay */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOS10    ) },      /* Rio S10      */
+	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOS11    ) },      /* Rio S11      */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOS50    ) },      /* Rio S50      */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOS35    ) },      /* Rio S35S     */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOS30    ) },      /* Rio S30S     */
@@ -599,6 +631,7 @@ static struct usb_device_id rio_id_table [] = {
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOFUSE   ) },      /* Rio Fuse     */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOCHIBA  ) },      /* Rio Chiba    */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOCALI   ) },      /* Rio Cali     */
+	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOCALI256) },      /* Rio Cali     */
 	{ USB_DEVICE(VENDOR_DIAMOND01, PRODUCT_RIOS11    ) },      /* Rio S11/ESA  */
 	{ }					                /* Terminating entry */
 };
@@ -649,5 +682,5 @@ static void __exit usb_rio_cleanup(void)
 module_init(usb_rio_init);
 module_exit(usb_rio_cleanup);
 
-MODULE_AUTHOR("Nathan Hjelm <hjelmn@cs.unm.edu>");
+MODULE_AUTHOR("Nathan Hjelm <hjelmn@users.sourceforge.net>");
 MODULE_DESCRIPTION("USB Rio driver");

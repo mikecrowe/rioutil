@@ -1,6 +1,6 @@
 /**
- *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4 driver_standard.c
+ *   (c) 2001-2006 Nathan Hjelm <hjelmn@users.sourceforge.net>
+ *   v1.5.0 driver_standard.c
  *
  *   Allows rioutil to communicate with the rio through kernel-level drivers.
  *
@@ -19,17 +19,26 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  **/
 
-#include "driver.h"
-
-#include <sys/ioctl.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 
 #include <errno.h>
 
-/* moved this here since it is only internal to library */
+#include <sys/ioctl.h>
+
+#include "driver.h"
+
+char driver_method[] = "device file";
+
+/* Duplicated from rio_usb.h */
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#define RIO_RECV_COMMAND _IOWR('U', 201, struct RioCommand)
+#else
+#define RIO_RECV_COMMAND 0x2
+#endif
+
+/* RIODEVICE moved here since it is only used in this file */
 #ifdef linux
 #include <linux/usb.h>
 #define RIODEVICE  "/dev/usb/rio"
@@ -37,10 +46,9 @@
 #define RIODEVICE "/dev/urio"
 #elif defined(__NetBSD__)
 #define RIODEVICE "/dev/urio"
-#elif defined(__MacOSX__)
-#define RIODEVICE ""
 #endif
 
+#if !defined(linux)
 /* Device descriptor */
 struct usb_device_descriptor {
   u_int8_t  bLength;
@@ -58,17 +66,6 @@ struct usb_device_descriptor {
   u_int8_t  iSerialNumber;
   u_int8_t  bNumConfigurations;
 };
-
-#if !defined(bswap_16)
-short bswap_16 (short x) {
-  short y;
-  char *xp = (char *)&x, *yp = (char *)xp;
-
-  yp[0] = xp[1];
-  yp[1] = xp[0];
-
-  return y;
-}
 #endif
 
 void usb_close_rio (rios_t *rio) {
@@ -122,13 +119,8 @@ int usb_open_rio (rios_t *rio, int number) {
     return -errno;
   }
 
-#if BYTE_ORDER==BIG_ENDIAN
-  id_product = bswap_16 (dev.idProduct);
-  id_vendor  = bswap_16 (dev.idVendor);
-#else
-  id_product = desc.idProduct;
-  id_vendor  = desc.idVendor;
-#endif
+  id_product = little16_2_arch16 (dev.idProduct);
+  id_vendor  = little16_2_arch16 (dev.idVendor);
 
   for (p = &player_devices[0] ; p->vendor_id ; p++)
     if (desc.idVendor == p->vendor_id &&
@@ -148,10 +140,8 @@ int usb_open_rio (rios_t *rio, int number) {
   return 0;
 }
 
-int control_msg(rios_t *rio, u_int8_t direction, u_int8_t request,
-		u_int16_t value, u_int16_t index, u_int16_t length,
-		unsigned char *buffer)
-{
+int control_msg(rios_t *rio, u_int8_t request, u_int16_t value,
+		u_int16_t index, u_int16_t length, unsigned char *buffer) {
   struct rioutil_usbdevice *dev = (struct rioutil_usbdevice *)rio->dev;
 
   struct RioCommand cmd;

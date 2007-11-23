@@ -1,7 +1,0 @@
-Package: @PACKAGE@
-Version: @VERSION@
-Section: utils
-Provides: rioutil, librioutil
-Depends: libusb
-Maintainer: Nathan Hjelm <hjelmn@cs.unm.edu>
-Description: Program to interface with Sonic Blue's, Diamond MM's, and Digital Networks NA's MP3 players (Rio 600/800/900/Riot/S-Series/psa[play, Nitrus, Cali, Chiba, and Fuse).
