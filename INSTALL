@@ -1,0 +1,30 @@
+% ./configure {OPTIONS}
+% make
+% make install
+
+From CVS: {you need autoconf/automake for this to work}
+% ./autogen.sh {OPTIONS}
+% make
+% make install
+
+       The binary's name will be rioutil and it is installed in /usr/local/bin
+by default.
+
+Making a clean source tarball:
+% ./configure
+% make dist
+
+Making an rpm:
+% ./configure {OPTIONS}
+% make dist
+% cp rioutil-{VERSION}.tar.gz {RPM SOURCE DIRECTORY}
+% cd spec
+% rpm -bb rioutil-{configuration}.spec
+
+rpm will appear in you rpm build directory if completed successfully.
+
+Making a dpkg:
+% cd debian
+% . build_dpkg.sh
+
+Any bugs can be reported to me <hjelmn@cs.unm.edu>.

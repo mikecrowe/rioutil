@@ -1,0 +1,137 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(aclocal.m4)
+AC_PROG_CC
+
+LT_AC_PROG_SED
+
+AC_LIBTOOL_DLOPEN
+AC_PROG_LIBTOOL
+AM_PROG_LIBTOOL
+
+AM_INIT_AUTOMAKE(rioutil,1.4.4)
+AM_CONFIG_HEADER(include/config.h)
+
+AH_TOP(
+#undef WITH_LIBUSB
+#undef WITH_USBDEVFS
+#undef __MacOSX__
+)
+
+dnl Checks for programs.
+AC_PROG_INSTALL
+AC_PROG_LN_S
+
+dnl Checks for libraries.
+dnl Replace `main' with a function in -lz:
+AC_CHECK_LIB(z, main)
+
+dnl Check if C compiler understands -c and -o at the same time
+AC_PROG_CC_C_O
+if eval "test \"`echo '$ac_cv_prog_cc_'${ac_cc}_c_o`\" = no"; then
+      BROKEN_CC=
+else
+      BROKEN_CC=#
+fi
+AC_SUBST(BROKEN_CC)
+
+AC_PROG_MAKE_SET
+
+dnl Checks for libraries.
+AC_CHECK_LIB(z, compress)
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(fcntl.h limits.h strings.h sys/ioctl.h unistd.h getopt.h libgen.h linux/usbdevice_fs.h bswap.h sys/byteswap.h)
+
+AC_CHECK_LIB(gnugetopt, getopt_long)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_OFF_T
+
+dnl Checks for library functions.
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MEMCMP
+AC_CHECK_FUNCS(memmem basename)
+
+dnl AC_ARG_PROGRAM
+
+dnl libusb is now the default method
+libusb=yes
+
+AC_MSG_CHECKING(whether to use USBDEVFS)
+AC_ARG_WITH(usbdevfs,
+[  --with-usbdevfs     Include USBDEVFS support
+  --without-usbdevfs  Don't include USBDEVFS support (default)],
+[ case "$withval" in
+  yes)
+    usbdevfs=yes
+    libusb=no
+    AC_MSG_RESULT(yes)
+    AC_DEFINE_UNQUOTED(WITH_USBDEVFS)
+    AC_SUBST(WITH_USBDEVS)
+    ;;
+  *)
+    usbdevfs=no
+    AC_MSG_RESULT(no)
+    ;;
+  esac],
+[
+  usbdevfs=no
+  AC_MSG_RESULT(no)
+]
+)
+
+AC_MSG_CHECKING(whether to build for macosx)
+case $host in
+  *-darwin*)
+    osx_support=yes
+    AC_MSG_RESULT(yes)
+    AC_DEFINE_UNQUOTED(__MacOSX__)
+    AC_SUBST(MACOSX)
+
+    AC_CHECK_LIB(IOKit,IOCloseConnection)
+    AC_CHECK_HEADER(unistd.h)
+    AC_CHECK_FUNCS(optarg getopt optind opterr optopt)
+    ;;
+  *)
+    osx_support=no
+    AC_MSG_RESULT(no)
+    ;;
+esac
+
+AC_MSG_CHECKING(whether to use libusb)
+AC_ARG_WITH(libusb,
+[  --with-libusb     Include libusb support (default)
+  --without-libusb  Don't include libusb support],
+[ case "$withval" in
+  yes)
+    libusb=yes
+    ;;
+  *)
+    libusb=no
+    AC_MSG_RESULT(no)
+    ;;
+  esac],
+[
+  if test "x$libusb" = "xno"; then
+    AC_MSG_RESULT(no)
+  fi
+]
+)
+
+if test "x$libusb" = "xyes"; then
+    AC_MSG_RESULT(yes)
+    AC_DEFINE_UNQUOTED(WITH_LIBUSB)
+    AC_CHECK_HEADER(usb.h)
+    AC_CHECK_LIB(usb, usb_init)
+    AC_SUBST(WITH_LIBUSB)
+fi
+
+AM_CONDITIONAL(MACOSX, test "$osx_support" = "yes")
+AM_CONDITIONAL(WITH_USBDEVFS, test "$usbdevfs" = "yes")
+AM_CONDITIONAL(WITH_LIBUSB, test "$libusb" = "yes")
+
+PACKAGE=rioutil
+VERSION=1.4.4
+
+AC_OUTPUT(Makefile librioutil/Makefile include/Makefile src/Makefile man/Makefile spec/Makefile spec/rioutil.spec spec/rioutil-usbdevfs.spec spec/rioutil-libusb.spec man/rioutil.1 linux_driver/Makefile bsd_driver/Makefile debian/Makefile debian/build_dpkg.sh debian/control)
