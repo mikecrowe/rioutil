@@ -26,19 +26,6 @@
 
 /* errors */
 #define URIO_SUCCESS 0
-#define EUNSUPP       -1
-#define EOPEN        -32
-#define EINTERFACE   -33
-#define ECOMMAND     -34
-#define EDELETE      -35
-#define ERIORDY      -36
-#define ENOINST      -37
-#define ERIOFULL     -38
-#define EREAD        -39
-#define EWRITE       -40
-#define ERIOOFF      -41
-#define ENOFILE      -42
-#define ERIOBUSY     -43
 
 enum rios { RIO600, RIO800, PSAPLAY, RIO900, RIOS10, RIOS50,
 	    RIOS35, RIOS30, RIOFUSE, RIOCHIBA, RIOCALI,
@@ -104,6 +91,9 @@ typedef struct _file_list {
 
   u_int8_t sflags[3];
   u_int32_t rio_num;
+
+  char year[5];
+  char genre[17];
 } file_list;
 
 typedef struct _mem_list {
@@ -118,32 +108,33 @@ typedef struct _mem_list {
 } mem_list;
 
 typedef struct _rio_info {
-    mem_list memory[MAX_MEM_UNITS];
-
-    /*
-      all of these values can be changed and set
-    */
-    unsigned char name[16];
-
-    u_int8_t  light_state;
-    u_int8_t  repeat_state;
-    u_int8_t  eq_state;
-    u_int8_t  bass;
-    u_int8_t  treble;
-    u_int8_t  sleep_time;
-    u_int8_t  contrast;
-    u_int8_t  playlist;
-    u_int8_t  volume;
-    u_int8_t  random_state;
-    u_int8_t  the_filter_state;
-
-    /*
-      Can not be manipulated.
-    */
-    /* this is most likely only 1 or 2 */
-    u_int8_t  total_memory_units;
-
-    float version;
+  mem_list memory[MAX_MEM_UNITS];
+  
+  /*
+    all of these values can be changed and set
+  */
+  unsigned char name[16];
+  
+  u_int8_t  light_state;
+  u_int8_t  repeat_state;
+  u_int8_t  eq_state;
+  u_int8_t  bass;
+  u_int8_t  treble;
+  u_int8_t  sleep_time;
+  u_int8_t  contrast;
+  u_int8_t  playlist;
+  u_int8_t  volume;
+  u_int8_t  random_state;
+  u_int8_t  the_filter_state;
+  
+  /*
+    Can not be manipulated.
+  */
+  /* this is most likely only 1 or 2 */
+  u_int8_t  total_memory_units;
+  
+  float version;
+  u_int8_t serial_number[16];
 } rio_info_t;
 
 typedef struct _rios {
@@ -171,7 +162,7 @@ typedef rios_t rio_instance_t;
 /*
   rio funtions:
 */
-rios_t *open_rio    (rios_t *rio, int number, int debug, int fill_structures);
+int     open_rio    (rios_t *rio, int number, int debug, int fill_structures);
 void    close_rio   (rios_t *rio);
 
 int     set_info_rio      (rios_t *rio, rio_info_t *info);
@@ -192,6 +183,8 @@ rio_info_t     *return_info_rio      (rios_t *rio);
 /* new as of 01-20-2004 */
 /* Works only with newer Rios (S-Series or newer) */
 int create_playlist_rio (rios_t *rio, char *name, int songs[], int memory_units[], int nsongs);
+int overwrite_file_rio (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno, char *filename);
+int return_serial_number_rio (rios_t *rio, u_int8_t serial_number[16]);
 
 /* library info */
 char          *return_conn_method_rio(void);

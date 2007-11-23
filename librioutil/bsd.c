@@ -25,7 +25,6 @@
 #include "config.h"
 #include "rio_internal.h"
 
-/* seems that neither freebsd or macos x have this */
 #if defined (__FreeBSD__) || defined (__MacOSX__)
 
 u_int32_t bswap_32(u_int32_t x){
@@ -40,6 +39,8 @@ u_int32_t bswap_32(u_int32_t x){
 #if !defined(HAVE_BASENAME)
 
 char *basename(char *x){
+  static char buffer[PATH_MAX];
+  static int buffer_pos = 0;
   int i;
   /* there is no / in x */
   if (strstr(x, "/") == NULL)
@@ -47,7 +48,13 @@ char *basename(char *x){
  
   for (i = strlen(x) - 1 ; x[i] != '/'; i--);
 
-  return &x[i+1];
+  if ((strlen(&x[i+1]) + 1) < (PATH_MAX - buffer_pos))
+    buffer_pos = 0;
+
+  memset (&buffer[buffer_pos], 0, strlen (&x[i+1]) + 1);
+  memcpy (&buffer[buffer_pos], &x[i+1], strlen(&x[i+1]));
+
+  return &buffer[buffer_pos];
 }
 
 #endif

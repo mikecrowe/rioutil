@@ -1,6 +1,21 @@
+Aug  23 2004:
+	- Fixed a major bug in id3.c that affected linux users with a file not
+	found error. Also fixed in main.c. Thanks to Sarah Hitchens for
+	finding/fixing the bug!
+	- Cleaned up memory leaks in playlist.c and downloadable.c.
+	- Fixed typo in filename for song_management.c.
+May  02 2004:
+	- Changed rio_open call. I don't know what I was thinking when I wrote
+	 it the first time. The new call should no longer seg fault under 2.6.
+Apr  22 2004:
+	- Updated id3.c to version used in upod.
 Jan  20 2004:
 	- Added create_playlist_rio for newer Rio players in librioutil.
-	- Added -j option to rioutil.
+	- Added -j (--playlist) option to rioutil. This may change before release.
+	- Fixed some more bugs in id3 parsing.
+	- Added genre and year fields to flash players.
+	- Added -k (--nocolor) option to suppress ansi color.
+	- Updated the man page to reflect recent changes.
 Jan  13 2004:
 	- Added support for downloading from S-Series Rios with firmware version 2.0
 	 or higher.

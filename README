@@ -115,19 +115,18 @@ one and can use stuffit expander (www.aladdinsys.com), you can download
 the firmware designed for the mac from www.riohome.com (a .sit.hqx or .zip file).
 Once this file is decompressed you should have a .lok file, this is the firmware.
 
-08/27/2003: Current firmware versions:
-rio600   : 1.55
-rio600-64: 1.55
-rio800   : 1.55
+08/25/2004: Current firmware versions:
+rio600   : 1.56
+rio600-64: 1.56
+rio800   : 1.56
 Riot     : 1.24
 
 These players work with rioutil's firmware update only from the ready to recieve
 firmware screen. A future version of rioutil will fix this known issue.
-S-Series : 2.00
-Nitrus   : Unknown
-Fuse     : Unknown
-Chiba    : Unknown
-Cali     : Unknown
+S-Series : 2.03
+Fuse     : 1.12
+Cali     : 1.12
+Chiba    : 1.12
 
 As far as I know, if you have any other player you probably have the latest
 firmware version (if it was bought recently).

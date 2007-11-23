@@ -59,13 +59,12 @@ int downloadable_info (info_page_t *newInfo, char *file_name)
     
     misc_file->mod_date = time(NULL);
     
-    tmp1 = (char *)malloc(strlen(file_name) + 1);
-    memset(tmp1, 0, strlen(file_name) + 1);
-    
-    strncpy(tmp1, file_name, strlen(file_name));
+    tmp1 = strdup (file_name);
     tmp2 = basename(tmp1);
     
     strncpy((char *)misc_file->name , tmp2, 63);
+
+    free (tmp1);
     
     newInfo->skip = 0;
     

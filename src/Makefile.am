@@ -11,6 +11,4 @@ else
 rioutil_LDADD = -L/usr/local/lib $(top_srcdir)/librioutil/librioutil.la
 endif
 
-CFLAGS = -g -O3
-
 rioutil_DEPENDENCIES = $(top_srcdir)/librioutil/librioutil.la

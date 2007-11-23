@@ -1,6 +1,6 @@
-%define ver     1.4.4
+%define ver     1.4.7
 %define rel     0
-%define prefix  /sw
+%define prefix  /usr/local
 %define name    rioutil
 
 Name:        %{name}
@@ -38,4 +38,5 @@ rm -rf $RPM_BUILD_ROOT
 %{prefix}/man/man1/rioutil.1
 %{prefix}/include/rio.h
 %{prefix}/lib/librioutil*.la
+%{prefix}/lib/librioutil*.a
 %{prefix}/lib/librioutil*.so*

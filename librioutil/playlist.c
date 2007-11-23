@@ -56,14 +56,13 @@ int playlist_info (info_page_t *newInfo, char *file_name) {
   playlist_file->size = statinfo.st_size;
   
   /* filename of playlist should be only 14 characters + \0 */
-  tmp1 = (char *)malloc(15);
-  memset(tmp1, 0, 15);
-  
-  strncpy(tmp1, file_name, strlen(file_name));
+  tmp1 = strdup (file_name);
   tmp2 = basename(tmp1);
   
-  strncpy((char *)playlist_file->name , tmp1, 14);
+  strncpy((char *)playlist_file->name , tmp2, 14);
   
+  free (tmp1);
+
   sscanf(file_name, "Playlist%02d.lst", &fnum);
   
   sprintf((char *)playlist_file->title, "Playlist %02d%cst", fnum, 0);
@@ -91,13 +90,6 @@ int new_playlist_info (info_page_t *newInfo, char *file_name, char *name) {
   memset(playlist_file, 0, sizeof(rio_file_t));
   
   playlist_file->size = statinfo.st_size;
-  
-  /* filename of playlist should be only 14 characters + \0 */
-  tmp1 = (char *)malloc(15);
-  memset(tmp1, 0, 15);
-  
-  strncpy(tmp1, file_name, strlen(file_name));
-  tmp2 = basename(tmp1);
   
   strncpy((char *)playlist_file->name , name, 64);
   

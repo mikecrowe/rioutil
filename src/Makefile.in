@@ -82,6 +82,7 @@ GCJ = @GCJ@
 GCJFLAGS = @GCJFLAGS@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LIBTOOL = @LIBTOOL@
+LIBUSB_CONFIG = @LIBUSB_CONFIG@
 LN_S = @LN_S@
 MACOSX = @MACOSX@
 OBJDUMP = @OBJDUMP@
@@ -104,8 +105,6 @@ rioutil_SOURCES = main.c getopt.c getopt1.c main.h getopt.h
 @MACOSX_TRUE@rioutil_LDADD = -L/usr/local/lib $(top_srcdir)/librioutil/librioutil.la -lIOKit
 @MACOSX_FALSE@rioutil_LDADD = -L/usr/local/lib $(top_srcdir)/librioutil/librioutil.la
 @MACOSX_TRUE@CFLGS = -traditional-cpp
-
-CFLAGS = -g -O3
 
 rioutil_DEPENDENCIES = $(top_srcdir)/librioutil/librioutil.la
 subdir = src
@@ -135,6 +134,7 @@ LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+CFLAGS = @CFLAGS@
 DIST_SOURCES = $(rioutil_SOURCES)
 DIST_COMMON = Makefile.am Makefile.in
 SOURCES = $(rioutil_SOURCES)

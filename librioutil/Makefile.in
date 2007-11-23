@@ -82,6 +82,7 @@ GCJ = @GCJ@
 GCJFLAGS = @GCJFLAGS@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LIBTOOL = @LIBTOOL@
+LIBUSB_CONFIG = @LIBUSB_CONFIG@
 LN_S = @LN_S@
 MACOSX = @MACOSX@
 OBJDUMP = @OBJDUMP@
@@ -98,10 +99,10 @@ install_sh = @install_sh@
 
 INCLUDES = -I$(top_srcdir)/include
 
-EXTRA_DIST = rio.c rioio.c mp3.c wma.c downloadable.c byteorder.c \
+EXTRA_DIST = rio.c rioio.c mp3.c downloadable.c byteorder.c \
 		cksum.c bsd.c driver_libusb.c playlist.c driver_usbdevfs.c \
 		usbdrvlinux.c driver_macosx.c driver_standard.c genre.h \
-		song_managment.c mp3tech.c mp3tech.h id3.c
+		song_management.c id3.c
 
 
 @MACOSX_FALSE@@WITH_LIBUSB_FALSE@@WITH_USBDEVFS_FALSE@DRIVER = driver_standard.c
@@ -112,19 +113,18 @@ EXTRA_DIST = rio.c rioio.c mp3.c wma.c downloadable.c byteorder.c \
 @MACOSX_TRUE@@WITH_LIBUSB_FALSE@@WITH_USBDEVFS_FALSE@FLGS = -O3 -traditional-cpp
 @WITH_LIBUSB_TRUE@@WITH_USBDEVFS_FALSE@FLGS = -g3
 @WITH_USBDEVFS_TRUE@FLGS = -g3
-@MACOSX_TRUE@@WITH_LIBUSB_FALSE@@WITH_USBDEVFS_FALSE@LDFLGS = -framework "CoreFoundation"
 
-CFLAGS = $(FLGS)
+LDFLAGS = 
 
 # new libtool eliminates the need for seperate OS X section
 lib_LTLIBRARIES = librioutil.la
 
-librioutil_la_SOURCES = rio.c rioio.c mp3.c mp3tech.c wma.c downloadable.c \
-			byteorder.c song_managment.c cksum.c bsd.c hexdump.c \
+librioutil_la_SOURCES = rio.c rioio.c mp3.c downloadable.c \
+			byteorder.c song_management.c cksum.c bsd.c hexdump.c \
 			playlist.c id3.c $(DRIVER)
 
 
-librioutil_la_LDFLAGS = -version-info 5:1:4 $(LDFLGS)
+librioutil_la_LDFLAGS = -version-info 5:1:4
 
 librioutil_la_LIBADD = 
 subdir = librioutil
@@ -140,15 +140,14 @@ librioutil_la_DEPENDENCIES =
 @MACOSX_TRUE@@WITH_LIBUSB_FALSE@@WITH_USBDEVFS_FALSE@	driver_macosx.lo
 @WITH_LIBUSB_TRUE@@WITH_USBDEVFS_FALSE@am__objects_1 = driver_libusb.lo
 @WITH_USBDEVFS_TRUE@am__objects_1 = driver_usbdevfs.lo usbdrvlinux.lo
-am_librioutil_la_OBJECTS = rio.lo rioio.lo mp3.lo mp3tech.lo wma.lo \
-	downloadable.lo byteorder.lo song_managment.lo cksum.lo bsd.lo \
-	hexdump.lo playlist.lo id3.lo $(am__objects_1)
+am_librioutil_la_OBJECTS = rio.lo rioio.lo mp3.lo downloadable.lo \
+	byteorder.lo song_management.lo cksum.lo bsd.lo hexdump.lo \
+	playlist.lo id3.lo $(am__objects_1)
 librioutil_la_OBJECTS = $(am_librioutil_la_OBJECTS)
 
 DEFS = @DEFS@
 DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)/include
 CPPFLAGS = @CPPFLAGS@
-LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -159,11 +158,10 @@ am__depfiles_maybe = depfiles
 @AMDEP_TRUE@	./$(DEPDIR)/driver_standard.Plo \
 @AMDEP_TRUE@	./$(DEPDIR)/driver_usbdevfs.Plo \
 @AMDEP_TRUE@	./$(DEPDIR)/hexdump.Plo ./$(DEPDIR)/id3.Plo \
-@AMDEP_TRUE@	./$(DEPDIR)/mp3.Plo ./$(DEPDIR)/mp3tech.Plo \
-@AMDEP_TRUE@	./$(DEPDIR)/playlist.Plo ./$(DEPDIR)/rio.Plo \
-@AMDEP_TRUE@	./$(DEPDIR)/rioio.Plo \
-@AMDEP_TRUE@	./$(DEPDIR)/song_managment.Plo \
-@AMDEP_TRUE@	./$(DEPDIR)/usbdrvlinux.Plo ./$(DEPDIR)/wma.Plo
+@AMDEP_TRUE@	./$(DEPDIR)/mp3.Plo ./$(DEPDIR)/playlist.Plo \
+@AMDEP_TRUE@	./$(DEPDIR)/rio.Plo ./$(DEPDIR)/rioio.Plo \
+@AMDEP_TRUE@	./$(DEPDIR)/song_management.Plo \
+@AMDEP_TRUE@	./$(DEPDIR)/usbdrvlinux.Plo
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) \
@@ -171,6 +169,7 @@ LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+CFLAGS = @CFLAGS@
 DIST_SOURCES = $(librioutil_la_SOURCES)
 DIST_COMMON = Makefile.am Makefile.in
 SOURCES = $(librioutil_la_SOURCES)
@@ -232,13 +231,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hexdump.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/id3.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mp3.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mp3tech.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/playlist.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rio.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rioio.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/song_managment.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/song_management.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/usbdrvlinux.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wma.Plo@am__quote@
 
 distclean-depend:
 	-rm -rf ./$(DEPDIR)

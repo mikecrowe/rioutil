@@ -1,6 +1,6 @@
 /**
  *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4.1c rio.c
+ *   v1.4.4 rio.c
  *   
  *   c version of librioutil
  *   all sources are c style gnu (c-set-style in emacs)
@@ -24,12 +24,13 @@
 #include "config.h"
 #endif
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-
-#include <stdlib.h>
-#include <stdio.h>
 
 #if defined (HAVE_LIBGEN_H)
 #include <libgen.h>
@@ -44,7 +45,15 @@
 
 #include "driver.h"
 
-#include <stdarg.h>
+static int set_time_rio (rios_t *rio);
+static int get_flist_riomc (rios_t *rio, u_int8_t memory_unit, int *total_time, int *num_files,
+			    file_list **head);
+static int get_flist_riohd (rios_t *rio, u_int8_t memory_unit, int *total_time, int *num_files,
+			    file_list **head);
+static int return_mem_list_rio (rios_t *rio, mem_list *list);
+static int return_intrn_info_rio (rios_t *rio);
+
+
 void rio_log (rios_t *rio, int error, char *format, ...) {
   if ( (rio->debug > 0) && (rio->log != NULL) ) {
     va_list arg;
@@ -64,6 +73,15 @@ void rio_log (rios_t *rio, int error, char *format, ...) {
   }
 }
 
+void rio_log_data (rios_t *rio, char *dir, char *data, int data_size) {
+  rio_log (rio, 0, "dir: %s data size: 0x%08x\n", dir, data_size);
+
+  if ((rio->debug > 0 && data_size < 257) || (rio->debug > 3))
+    pretty_print_block (data, data_size);
+  else if (rio->debug > 0)
+    pretty_print_block (data, 256);
+}
+
 /*
   open_rio:
     Open rio.
@@ -72,13 +90,13 @@ void rio_log (rios_t *rio, int error, char *format, ...) {
       - An initiated rio instance.
       - NULL if an error occured.
 */
-rios_t *open_rio (rios_t *rio, int number, int debug, int fill_structures) {
+int open_rio (rios_t *rio, int number, int debug, int fill_structures) {
   int ret;
 
   if (rio == NULL)
-    rio = (rios_t *) calloc (1, sizeof(rios_t));
-  else
-    memset(rio, 0, sizeof(rios_t));
+    return -1;
+
+  memset(rio, 0, sizeof(rios_t));
   
   rio->debug       = debug;
   rio->log         = stderr;
@@ -99,34 +117,37 @@ rios_t *open_rio (rios_t *rio, int number, int debug, int fill_structures) {
   if ((ret = usb_open_rio (rio, number)) != 0) {
     rio_log (rio, ret, "open_rio: could not open a Rio device\n");
 
-    return NULL;
+    return ret;
   }
   
-  if (set_time_rio (rio) != URIO_SUCCESS && fill_structures != 0) {
+  ret = set_time_rio (rio);
+  if (ret != URIO_SUCCESS && fill_structures != 0) {
     close_rio (rio);
 
-    return (rio->dev = NULL);
+    return ret;
   }
   
   unlock_rio (rio);
 
-  if (fill_structures != 0)
-    if (return_intrn_info_rio (rio) != URIO_SUCCESS) {
+  if (fill_structures != 0) {
+    ret = return_intrn_info_rio (rio);
+    if (ret != URIO_SUCCESS) {
       close_rio (rio);
       
-      return (rio->dev = NULL);
+      return ret;
     }
+  }
 
   rio_log (rio, 0, "open_rio: new rio instance created.\n");
 
-  return rio;
+  return URIO_SUCCESS;
 }
 
 /*
   set_time_rio:
     Only sets the rio's time these days.
 */
-int set_time_rio (rios_t *rio) {
+static int set_time_rio (rios_t *rio) {
   long int curr_time;
   struct timeval tv;
   struct timezone tz;
@@ -167,14 +188,14 @@ int set_time_rio (rios_t *rio) {
   Close connection with rio and free buffer.
 */
 void close_rio (rios_t *rio) {
-  int i;
+  int i, ret;
 
   if (try_lock_rio (rio) != 0)
     return;
   
   rio_log (rio, 0, "close_rio: entering...\n");
 
-  if (wake_rio(rio) != URIO_SUCCESS)
+  if ((ret = wake_rio(rio)) != URIO_SUCCESS)
     return;
   
   /* this command seems to tell the rio we are done */
@@ -182,7 +203,8 @@ void close_rio (rios_t *rio) {
   
   /* close connection */
   usb_close_rio (rio);
-  
+  rio->dev = NULL;
+
   /* release the memory used by this instance */
   free_info_rio (rio);
 
@@ -196,7 +218,7 @@ void close_rio (rios_t *rio) {
     Downloads file listing off of a flash media or smc based Rio (Rio600,
   Rio800, S-Series, etc.) and saves it as a linked list in head.
 */
-int get_flist_riomc (rios_t *rio, u_int8_t memory_unit, int *total_time,
+static int get_flist_riomc (rios_t *rio, u_int8_t memory_unit, int *total_time,
 		     int *num_files, file_list **head) {
   int i, ret;
   rio_file_t file;
@@ -218,7 +240,7 @@ int get_flist_riomc (rios_t *rio, u_int8_t memory_unit, int *total_time,
   for (i = 0 ; i < MAX_RIO_FILES ; i++) {
     ret = get_file_info_rio(rio, &file, memory_unit, i);
 
-    if (ret == ENOFILE)
+    if (ret == -ENOENT)
       break; /* not an error */
     else if (ret != URIO_SUCCESS)
       return ret;
@@ -236,6 +258,8 @@ int get_flist_riomc (rios_t *rio, u_int8_t memory_unit, int *total_time,
     strncpy(flist->title, file.title, 64);
     strncpy(flist->album, file.album, 64);
     strncpy(flist->name, file.name, 64);
+    strncpy(flist->genre, file.genre2, 16);
+    strncpy(flist->year, file.year2, 4);
     
     flist->time = file.time;
     
@@ -330,7 +354,7 @@ int get_file_info_rio(rios_t *rio, rio_file_t *file,
     
     /* no file exists with number 0, they are listed from 1 */
     if (file->file_no == 0)
-      return ENOFILE;
+      return -ENOENT;
   } else {
     /* for the RIOT to delete files (does this also work with downloads?) */
     file->riot_file_no = file_no;
@@ -349,8 +373,8 @@ int get_file_info_rio(rios_t *rio, rio_file_t *file,
    can have blank spaces in the file list it's important to display
    the correct file number; but count the actual files.
 */
-int get_flist_riohd (rios_t *rio, u_int8_t memory_unit, int *total_time,
-		     int *num_files, file_list **head) {
+static int get_flist_riohd (rios_t *rio, u_int8_t memory_unit, int *total_time,
+			    int *num_files, file_list **head) {
   int ret;
   u_int8_t *read_buffer;
   u_int32_t *iptr;
@@ -455,11 +479,13 @@ int get_flist_riohd (rios_t *rio, u_int8_t memory_unit, int *total_time,
   return_mem_list_rio:
   Return a two way linked list of rio_mems
 */
-int return_mem_list_rio(rios_t *rio, mem_list *list) {
+static int return_mem_list_rio(rios_t *rio, mem_list *list) {
   int i, total_time, num_files, ret;
   rio_mem_t memory;
   file_list *file;
   int num_mem_units = MAX_MEM_UNITS;
+
+  rio_log (rio, 0, "return_mem_list_rio: entering...\n");
 
   if (return_type_rio(rio) == RIORIOT) {
     memset(list, 0, sizeof(mem_list));
@@ -487,12 +513,14 @@ int return_mem_list_rio(rios_t *rio, mem_list *list) {
       list[i].free       = memory.free;
       list[i].num_files  = num_files;
       list[i].total_time = total_time;
-
-      rio_log (rio, 0, "Number of files: %i Total Time: %i\n\n",num_files,
+      
+      rio_log (rio, 0, "Number of files: %i Total Time: %i\n\n", num_files,
 	       (total_time/60)/60);
     } else
         return ret;
   }
+
+  rio_log (rio, 0, "return_mem_list_rio: finished\n");
 
   return URIO_SUCCESS;
 }
@@ -570,7 +598,7 @@ float return_version_rio (rios_t *rio) {
 
   renamed from return_info_rio
 */
-int return_intrn_info_rio(rios_t *rio) {
+static int return_intrn_info_rio(rios_t *rio) {
   rio_info_t *info = &rio->info;
   rio_prefs_t prefs;
   riot_prefs_t riot_prefs;
@@ -582,7 +610,7 @@ int return_intrn_info_rio(rios_t *rio) {
   int i;
   
   if (try_lock_rio (rio) != 0)
-    return ERIOBUSY;
+    return -EBUSY;
 
   memset (info, 0, sizeof (rio_info_t));
 
@@ -605,7 +633,8 @@ int return_intrn_info_rio(rios_t *rio) {
     retrieve non-changable values
   */
   cmd = RIO_DESCP;
-  if ((ret = send_command_rio(rio, cmd, 0, 0)) != 0) {
+  ret = send_command_rio(rio, cmd, 0, 0);
+  if (ret != URIO_SUCCESS) {
     rio_log (rio, ret, "return_info_rio: error sending command.\n");
     UNLOCK(ret);
   }
@@ -619,6 +648,7 @@ int return_intrn_info_rio(rios_t *rio) {
 
   info->version = (desc[5] + (0.1) * (desc[4] >> 4)
 		   + (0.01) * (desc[4] & 0xf));
+  memmove (info->serial_number, &desc[0x60], 16);
 
   if ((ret = return_mem_list_rio(rio, rio->info.memory)) != URIO_SUCCESS) 
     return ret;
@@ -710,53 +740,53 @@ static void sane_info_copy (rio_info_t *info, rio_prefs_t *prefs);
 */
 int set_info_rio(rios_t *rio, rio_info_t *info) {
   rio_prefs_t pref_buf;
-  int error;
+  int ret;
   unsigned char cmd;
 
   if (try_lock_rio (rio) != 0)
-    return ERIOBUSY;
+    return -EBUSY;
 
   /* noting to write */
   if (info == NULL)
     return -1;
 
   cmd = RIO_PREFR;
-  if ((error = send_command_rio(rio, cmd, 0, 0)) != 0) {
-    rio_log (rio, error, "set_info_rio: Error sending command\n");
+  if ((ret = send_command_rio(rio, cmd, 0, 0)) != 0) {
+    rio_log (rio, ret, "set_info_rio: Error sending command\n");
 
-    UNLOCK(EUNSUPP);
+    UNLOCK(ret);
   }
   
-  error = read_block_rio(rio, (unsigned char *)&pref_buf, RIO_MTS);
-  if (error != URIO_SUCCESS) {
-    rio_log (rio, error, "Error reading data after command 0x%x\n", cmd);
+  ret = read_block_rio(rio, (unsigned char *)&pref_buf, RIO_MTS);
+  if (ret != URIO_SUCCESS) {
+    rio_log (rio, ret, "Error reading data after command 0x%x\n", cmd);
     
-    UNLOCK(error);
+    UNLOCK(ret);
   }
   
   sane_info_copy (info, &pref_buf);
   
-  if (wake_rio(rio) != URIO_SUCCESS)
-    UNLOCK(ENOINST);
+  if ((ret = wake_rio(rio)) != URIO_SUCCESS)
+    UNLOCK(ret);
 
   cmd = RIO_PREFS;
-  if ((error = send_command_rio(rio, cmd, 0, 0)) != 0) {
-    rio_log (rio, error, "set_info_rio: Error sending command\n");
+  if ((ret = send_command_rio(rio, cmd, 0, 0)) != 0) {
+    rio_log (rio, ret, "set_info_rio: Error sending command\n");
 
-    UNLOCK(-1);
+    UNLOCK(ret);
   }
 
-  error = read_block_rio(rio, NULL, 64);
-  if (error != URIO_SUCCESS) {
-    rio_log (rio, error, "set_info_rio: error reading data after command 0x%x\n", cmd);
+  ret = read_block_rio(rio, NULL, 64);
+  if (ret != URIO_SUCCESS) {
+    rio_log (rio, ret, "set_info_rio: error reading data after command 0x%x\n", cmd);
     
-    UNLOCK(error);
+    UNLOCK(ret);
   }
 
-  if ((error = write_block_rio(rio, (unsigned char *)&pref_buf, RIO_MTS, NULL)) != URIO_SUCCESS)
-    rio_log (rio, error, "set_info_rio: error writing preferences\n");
+  if ((ret = write_block_rio(rio, (unsigned char *)&pref_buf, RIO_MTS, NULL)) != URIO_SUCCESS)
+    rio_log (rio, ret, "set_info_rio: error writing preferences\n");
 
-  UNLOCK(error);
+  UNLOCK(ret);
 }
 
 /*
@@ -789,10 +819,10 @@ int format_mem_rio (rios_t *rio, u_int8_t memory_unit) {
   int pd;
 
   if ( (rio == NULL) || (rio->dev == NULL) )
-    return ENOINST;
+    return -EINVAL;
 
   if (try_lock_rio (rio) != 0)
-    return ERIOBUSY;
+    return -EBUSY;
 
   /* don't need to call wake_rio here */
 
@@ -847,7 +877,7 @@ int update_rio (rios_t *rio, char *file_name) {
   int player_generation = return_generation_rio (rio);
 
   if (try_lock_rio (rio) != 0)
-    return ERIOBUSY;
+    return -EBUSY;
 
   rio_log (rio, 0, "Updating firmware of generation %d rio...\n",
 	   player_generation);
@@ -858,16 +888,15 @@ int update_rio (rios_t *rio, char *file_name) {
     UNLOCK(ret);
 
   if (stat(file_name, &statinfo) < 0)
-    UNLOCK(-1);
+    UNLOCK(errno);
 
   size = statinfo.st_size;
 
   /* try to open the firmware file */
   if ((updtf = open(file_name, O_RDONLY)) < 0)
-    UNLOCK(-1);
+    UNLOCK(errno);
 
-  /* it is not necessary to check the .lok file as the player will reject it if it is bad */
-
+  /* it is not necessary to check the .lok file as the player will reject bad input */
   rio_log (rio, 0, "Sending command...\n");
 
   if ((ret = send_command_rio(rio, RIO_UPDAT, 0x1, 0)) != URIO_SUCCESS)
@@ -901,7 +930,8 @@ int update_rio (rios_t *rio, char *file_name) {
     /* read in a chunk of file */
     read(updtf, fileBuffer, blocksize);
     
-    write_block_rio (rio, fileBuffer, blocksize, NULL);
+    if (player_generation < 4)
+      write_block_rio (rio, fileBuffer, blocksize, NULL);
 
     if (player_generation == 5) {
       if (strstr (rio->buffer, "SRIOPR") != NULL) {
@@ -923,7 +953,16 @@ int update_rio (rios_t *rio, char *file_name) {
       close (updtf);
       return URIO_SUCCESS;
     } if (rio->progress != NULL)
-	rio->progress (x/2, blocks, rio->progress_ptr);
+	rio->progress ((player_generation == 4) ? x : x/2, blocks, rio->progress_ptr);
+
+    if (player_generation > 3)
+      write_block_rio (rio, fileBuffer, blocksize, NULL);
+  }
+
+  if (player_generation > 3) {
+    close(updtf);
+    
+    UNLOCK(URIO_SUCCESS);
   }
 
   lseek(updtf, 0, SEEK_SET);
@@ -959,294 +998,6 @@ int update_rio (rios_t *rio, char *file_name) {
   close(updtf);
 
   UNLOCK(URIO_SUCCESS);
-
-  return format_mem_rio (rio, 0);
-}
-
-int delete_dummy_hdr (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno) {
-  rio_file_t file;
-  int error;
-
-  rio_log (rio, 0, "Clearing dummy header...\n");
-
-  if ((error = get_file_info_rio(rio, &file, memory_unit, fileno)) != URIO_SUCCESS)
-    return error;
-
-  file.size = 0;
-  file.start = 0;
-  file.time = 0;
-  file.bits = 0;
-
-  if ((error = send_command_rio (rio, RIO_DELET, memory_unit, 0)) != URIO_SUCCESS)
-    return error;
-
-  if (strstr(rio->buffer, "SRIODELS"))
-    return EDELETE;
-
-  /* check if the rio responded ok (with a 1) */
-  if ((error = read_block_rio (rio, NULL, 64)) != URIO_SUCCESS)
-    return error;
-
-  /* correct the endianness of data */
-  file_to_me(&file);
-
-  if ((error = write_block_rio(rio, (unsigned char *)&file, RIO_MTS, NULL)) != URIO_SUCCESS)
-    return error;
-
-  if (strstr(rio->buffer, "SRIODELD") == NULL)
-    return EDELETE;
-
-  return URIO_SUCCESS;
-}
-
-int upload_dummy_hdr (rios_t *rio, u_int8_t memory_unit, u_int32_t fileno) {
-  rio_file_t file;
-  info_page_t info;
-  int error;
-  int file_num = first_free_file_rio (rio, memory_unit);
-
-  rio_log (rio, 0, "uploading dummy header\n");
-
-  if ((error = get_file_info_rio(rio, &file, memory_unit, fileno)) != URIO_SUCCESS) {
-    rio_log (rio, error, "Error getting file info.\n");
-    return -1;
-  }
-
-  if (file.bits & 0x00000080)
-    return fileno;
-
-  file.bits = 0x10000591;
-  file.type = 0x00000000;
-  file.file_no = 0;
-  file.bit_rate = 0;
-  file.sample_rate = 0;
-
-  if ((error = init_upload_rio(rio, memory_unit)) != URIO_SUCCESS) {
-    rio_log (rio, error, "upload_dummy_hdr(init_upload_rio) error\n");
-    abort_transfer_rio(rio);
-    return error;
-  }
-
-  info.data = &file;
-  info.skip = 0;
-
-  if ((error = complete_upload_rio(rio, memory_unit, info))!= URIO_SUCCESS) {
-    rio_log (rio, error, "upload_dummy_hdr(complete_upload_rio) error\n");
-    abort_transfer_rio(rio);
-    return error;
-  }
-
-  return file_num;
-}
-
-/*
-  download_file_rio:
-  Function takes in the number of the file
-  and attemt to download it from the Rio.
-  
-  Note: This only works with the following files:
-  - Recorded WAVE files on the Rio 800
-  - preferences.bin file
-  - bookmarks.bin file
-  - non-music files uploaded by rioutil
-  - any file from an S-Series** or beyond player 
-  
-  ** curent S-Series firmware doesn't have support for this
-    feature yet.
-
-  -- Note --
-  Any file on a third generation player that has the 0x80 bit
-  set can be downloaded.
-  
-  It seems that, probably due to the riaa, diamond has
-  made it so that wma and mp3 files CAN NOT
-  be downloaded. mp3s that are downloaded will be deleted
-  :(! Keep that in mind.
-
-  All new players from Rio Audio support downloading of any
-  file on the player!
-*/
-int download_file_rio (rios_t *rio, u_int8_t memory_unit,
-		       u_int32_t fileno, char *fileName) {
-  file_list *tmp;
-  rio_file_t file;
-  unsigned char *downBuf = (unsigned char *)malloc(RIO_FTS);
-  
-  int ret;
-
-  int downfd;
-  int size;
-  int i, blocks;
-  int *intp;
-  
-  int leftover;
-  int cr_dummy = -1;
-  int mode = S_IRUSR | S_IWUSR | S_IROTH | S_IRGRP;
-  int block_size;
-
-  int type = return_type_rio (rio);
-  int player_generation = return_generation_rio (rio);
-
-  if (try_lock_rio (rio) != 0)
-    return ERIOBUSY;
-
-  /* build file list if needed */
-  if (rio->info.memory[0].size == 0) 
-    if ((ret = return_mem_list_rio(rio, rio->info.memory)) != URIO_SUCCESS)
-      return ret;
-
-  /* fetch the file's info */
-  for (tmp = rio->info.memory[memory_unit].files ; tmp ; tmp = tmp->next)
-    if (tmp->num == fileno)
-      break;
-  
-  if (!tmp)
-    UNLOCK(ENOFILE);
-  
-  if ((ret = get_file_info_rio(rio, &file, memory_unit, fileno)) != URIO_SUCCESS) {
-    rio_log (rio, ret, "Error getting file info.\n");
-    return -1;
-  }
-
-  /* Ignore this section on Riot and new flash players */
-  if (type != RIORIOT && return_generation_rio (rio) != 5 &&
-      (return_generation_rio (rio) != 4 && return_version_rio(rio) < 2.0)) {
-    if (file.start == 0)
-      UNLOCK(EUNSUPP);
-
-    /* Older players can only download non-music files this will get
-     around that limitation */
-    if (player_generation == 3 && !(file.bits & 0x00000080)) {
-      cr_dummy = fileno;
-      fileno = upload_dummy_hdr (rio, memory_unit, fileno);
-    }
-  
-    if ((ret = get_file_info_rio(rio, &file, memory_unit, fileno)) != URIO_SUCCESS) {
-      rio_log (rio, ret, "Error getting file info.\n");
-      UNLOCK(-1);
-    }
-  }
-
-  size = tmp->size;
-  
-  /* send the send file command to the rio */
-  if ((ret = send_command_rio(rio, RIO_READF, memory_unit, 0)) != URIO_SUCCESS)
-    UNLOCK(ret);
-  
-  if ((ret = read_block_rio(rio, NULL, 64)) != URIO_SUCCESS)
-    UNLOCK(ret);
-    
-  /* Write the info page to the rio */
-  file_to_me(&file);
-  
-  write_block_rio(rio, (unsigned char *)&file, sizeof(rio_file_t), NULL);
-  
-  if (memcmp(rio->buffer, "SRIONOFL", 8) == 0)
-    UNLOCK(-1);
-  
-  if (!fileName)
-    /* create a file with identical name */
-    downfd = creat((char *)&tmp->name, mode);
-  else
-    /* create a file with a user-specified name */
-    downfd = creat((char *)fileName, mode);
-
-  if (return_generation_rio (rio) >= 4)
-    block_size = 0x4000;
-  else
-    block_size = 0x1000;
-
-  blocks = size/block_size + ((size % block_size) ? 1 : 0);
-
-  memset (downBuf, 0, block_size);
-  
-  for (i = 0 ; i < blocks ; i++) {
-    int read_size;
-    
-    if (rio->abort) {
-      abort_transfer_rio (rio);
-      rio->abort = 0;
-      
-      if (rio->progress)
-	rio->progress(1, 1, rio->progress_ptr);
-      
-      free(downBuf);
-      close(downfd);
-      UNLOCK(URIO_SUCCESS);
-    }
-    
-    /* the rio seems to expect checksum */
-    write_cksum_rio (rio, downBuf, block_size, "CRIODATA");
-    
-    if ((i+1)%4 == 0 || return_generation_rio(rio) >= 4) {
-      read_block_rio(rio, NULL, 64);
-      
-      if (memcmp(rio->buffer, "SRIODONE", 8) == 0){
-	if (rio->progress)
-	  rio->progress(1, 1, rio->progress_ptr);
-	
-	free(downBuf);
-	close(downfd);
-	UNLOCK(URIO_SUCCESS);
-      }
-    }
-    
-    if (size >= block_size)
-      read_size = block_size;
-    else
-      read_size = size;
-    
-    read_block_rio (rio, downBuf, block_size);
-    
-    if (rio->progress)
-      rio->progress(i, blocks, rio->progress_ptr);
-    
-    write(downfd, downBuf, read_size);
-    
-    size -= read_size;
-    
-    if (rio->debug > 0)
-      rio_log (rio, 0, "%08x bytes transferred, %08x to go\n", read_size, size);
-  }
-  
-  write_cksum_rio (rio, downBuf, block_size, "CRIODATA");
-  
-  if (return_generation_rio(rio) < 4)
-    read_block_rio(rio, NULL, 64);
-
-  if (rio->progress)
-    rio->progress(1, 1, rio->progress_ptr);
-  
-  close(downfd);
-  
-  /* 
-     finish up a 16384 byte block (usually just zeros)
-     I dont know exactly why it is needed
-  */
-  if (return_generation_rio (rio) < 4) {
-    for ( ; i % 4 ; i++) {
-      read_block_rio (rio, downBuf, block_size);
-      
-      write_cksum_rio (rio, downBuf, block_size, "CRIODATA");
-    }
-    
-    read_block_rio(rio, NULL, 64);
-  } 
- 
-  free(downBuf);
-  
-  send_command_rio(rio, 0x60, 0, 0);
-  
-  /* If a dummy header was uploaded, clear it */
-  if (cr_dummy != -1) {
-    delete_dummy_hdr (rio, memory_unit, fileno);
-
-    /* if only this could be avoided without causing some pretty
-       strange errors... */
-    delete_file_rio (rio, memory_unit, cr_dummy);
-  }
-  
-  UNLOCK(URIO_SUCCESS);
 }
 
 /*
@@ -1259,7 +1010,7 @@ int wake_rio (rios_t *rio) {
   int ret;
   
   if (!rio)
-    return ENOINST;
+    return -EINVAL;
   
   if ((ret = send_command_rio(rio, 0x66, 0, 0)) != URIO_SUCCESS)
     return ret;
@@ -1304,7 +1055,7 @@ void free_file_list (file_list *s) {
 */
 int update_info_rio (rios_t *rio) {
   if (!rio)
-    return ENOINST;
+    return -EINVAL;
 
   free_info_rio (rio);
   
@@ -1320,7 +1071,7 @@ int update_info_rio (rios_t *rio) {
 */
 u_int8_t return_mem_units_rio (rios_t *rio) {
   if (rio == NULL)
-    return ENOINST;
+    return -EINVAL;
   
   return rio->info.total_memory_units;
 }
@@ -1332,7 +1083,7 @@ u_int8_t return_mem_units_rio (rios_t *rio) {
 */
 u_int32_t return_free_mem_rio (rios_t *rio, u_int8_t memory_unit) {
   if (rio == NULL)
-    return ENOINST;
+    return -EINVAL;
   
   if (memory_unit >= MAX_MEM_UNITS) {
     rio_log (rio, -2, "return_free_mem_rio: memory unit %02x out of range.\n",
@@ -1350,7 +1101,7 @@ u_int32_t return_free_mem_rio (rios_t *rio, u_int8_t memory_unit) {
 */
 u_int32_t return_used_mem_rio (rios_t *rio, u_int8_t memory_unit) {
   if (rio == NULL)
-    return ENOINST;
+    return -EINVAL;
 
   if (memory_unit >= MAX_MEM_UNITS) {
     rio_log (rio, -2, "return_used_mem_rio: memory unit %02x out of range.\n",
@@ -1368,7 +1119,7 @@ u_int32_t return_used_mem_rio (rios_t *rio, u_int8_t memory_unit) {
 */
 u_int32_t return_total_mem_rio (rios_t *rio, u_int8_t memory_unit) {
   if (rio == NULL)
-    return ENOINST;
+    return -EINVAL;
 
   if (memory_unit >= MAX_MEM_UNITS) {
     rio_log (rio, -2, "return_total_mem_rio: memory unit %02x out of range.\n",
@@ -1444,7 +1195,7 @@ u_int32_t return_file_size_rio(rios_t *rio, u_int32_t song_id,
 */
 u_int32_t return_num_files_rio (rios_t *rio, u_int8_t memory_unit) {
   if (rio == NULL)
-    return ENOINST;
+    return -EINVAL;
   
   if (memory_unit >= MAX_MEM_UNITS) {
     rio_log (rio, -2,
@@ -1463,7 +1214,7 @@ u_int32_t return_num_files_rio (rios_t *rio, u_int8_t memory_unit) {
 */
 u_int32_t return_time_rio (rios_t *rio, u_int8_t memory_unit) {
   if (rio == NULL)
-    return ENOINST;
+    return -EINVAL;
   
   if (memory_unit >= MAX_MEM_UNITS) {
     rio_log (rio, -2, "return_time_rio: memory unit %02x out of range.\n",
@@ -1507,28 +1258,27 @@ file_list *return_list_rio (rios_t *rio, u_int8_t memory_unit, u_int8_t list_fla
 	 ((list_flags & RWAV) && ((tmp->type == WAV)
 				  || (tmp->type == WAVE))) ||
 	 ((list_flags & RSYS) && (strstr(tmp->name, ".bin") != NULL)) ||
-	 ((list_flags & RLST) && (strstr(tmp->name, ".lst") != NULL)) )
-      {
-	if ((bflist = malloc(sizeof(file_list))) == NULL) {
-	  rio_log (rio, errno, "return_list_rio: Error in malloc\n");
-	  return NULL;
-	}
-
-	*(bflist) = *(tmp);
-	
-	bflist->prev = prev;
-	bflist->next = NULL;
-	
-	if (bflist->prev != NULL)
-	  bflist->prev->next = bflist;
-	
-	if (first != 0) {
-	  first = 0;
-	  head = bflist;
-	}
-	
-	prev = bflist;
+	 ((list_flags & RLST) && (strstr(tmp->name, ".lst") != NULL)) ) {
+      if ((bflist = malloc(sizeof(file_list))) == NULL) {
+	rio_log (rio, errno, "return_list_rio: Error in malloc\n");
+	return NULL;
       }
+      
+      *(bflist) = *(tmp);
+      
+      bflist->prev = prev;
+      bflist->next = NULL;
+      
+      if (bflist->prev != NULL)
+	bflist->prev->next = bflist;
+      
+      if (first != 0) {
+	first = 0;
+	head = bflist;
+      }
+      
+      prev = bflist;
+    }
   }
   
   return head;
@@ -1588,6 +1338,15 @@ void set_progress_rio (rios_t *rio, void (*f)(int x, int X, void *ptr), void *pt
 */
 char *return_conn_method_rio (void) {
   return driver_method;
+}
+
+int return_serial_number_rio (rios_t *rio, u_int8_t serial_number[16]) {
+  if (rio == NULL)
+    return -EINVAL;
+
+  memmove (serial_number, rio->info.serial_number, 16);
+
+  return 0;
 }
 
 /* locking/unlocking routines */

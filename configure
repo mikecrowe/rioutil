@@ -462,7 +462,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT build build_cpu build_vendor build_os host host_cpu host_vendor host_os EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB STRIP ac_ct_STRIP CPP CXX CXXFLAGS ac_ct_CXX CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO AMTAR install_sh INSTALL_STRIP_PROGRAM AWK SET_MAKE DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE CXXDEPMODE BROKEN_CC LIBOBJS WITH_USBDEVS MACOSX WITH_LIBUSB MACOSX_TRUE MACOSX_FALSE WITH_USBDEVFS_TRUE WITH_USBDEVFS_FALSE WITH_LIBUSB_TRUE WITH_LIBUSB_FALSE LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT build build_cpu build_vendor build_os host host_cpu host_vendor host_os EGREP LN_S ECHO AR ac_ct_AR RANLIB ac_ct_RANLIB STRIP ac_ct_STRIP CPP CXX CXXFLAGS ac_ct_CXX CXXCPP F77 FFLAGS ac_ct_F77 LIBTOOL INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO AMTAR install_sh INSTALL_STRIP_PROGRAM AWK SET_MAKE DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE CXXDEPMODE BROKEN_CC LIBOBJS WITH_USBDEVS MACOSX LIBUSB_CONFIG WITH_LIBUSB MACOSX_TRUE MACOSX_FALSE WITH_USBDEVFS_TRUE WITH_USBDEVFS_FALSE WITH_LIBUSB_TRUE WITH_LIBUSB_FALSE LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -17972,7 +17972,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=rioutil
- VERSION=1.4.4
+ VERSION=1.4.7
 
 
 cat >>confdefs.h <<_ACEOF
@@ -19608,141 +19608,60 @@ echo "${ECHO_T}yes" >&6
 #define WITH_LIBUSB 1
 _ACEOF
 
-    if test "${ac_cv_header_usb_h+set}" = set; then
-  echo "$as_me:$LINENO: checking for usb.h" >&5
-echo $ECHO_N "checking for usb.h... $ECHO_C" >&6
-if test "${ac_cv_header_usb_h+set}" = set; then
+
+    # Extract the first word of "libusb-config", so it can be a program name with args.
+set dummy libusb-config; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_path_LIBUSB_CONFIG+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_usb_h" >&5
-echo "${ECHO_T}$ac_cv_header_usb_h" >&6
 else
-  # Is the header compilable?
-echo "$as_me:$LINENO: checking usb.h usability" >&5
-echo $ECHO_N "checking usb.h usability... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-#line $LINENO "configure"
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-$ac_includes_default
-#include <usb.h>
-_ACEOF
-rm -f conftest.$ac_objext
-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
-  (eval $ac_compile) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-         { ac_try='test -s conftest.$ac_objext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_header_compiler=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_header_compiler=no
-fi
-rm -f conftest.$ac_objext conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6
-
-# Is the header present?
-echo "$as_me:$LINENO: checking usb.h presence" >&5
-echo $ECHO_N "checking usb.h presence... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-#line $LINENO "configure"
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <usb.h>
-_ACEOF
-if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
-  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null; then
-  if test -s conftest.err; then
-    ac_cpp_err=$ac_c_preproc_warn_flag
-  else
-    ac_cpp_err=
+  case $LIBUSB_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_LIBUSB_CONFIG="$LIBUSB_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_LIBUSB_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
   fi
-else
-  ac_cpp_err=yes
-fi
-if test -z "$ac_cpp_err"; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
+done
+done
 
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc in
-  yes:no )
-    { echo "$as_me:$LINENO: WARNING: usb.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: usb.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: usb.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: usb.h: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-  no:yes )
-    { echo "$as_me:$LINENO: WARNING: usb.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: usb.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: usb.h: check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: usb.h: check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: usb.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: usb.h: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
+  ;;
 esac
-echo "$as_me:$LINENO: checking for usb.h" >&5
-echo $ECHO_N "checking for usb.h... $ECHO_C" >&6
-if test "${ac_cv_header_usb_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+LIBUSB_CONFIG=$ac_cv_path_LIBUSB_CONFIG
+
+if test -n "$LIBUSB_CONFIG"; then
+  echo "$as_me:$LINENO: result: $LIBUSB_CONFIG" >&5
+echo "${ECHO_T}$LIBUSB_CONFIG" >&6
 else
-  ac_cv_header_usb_h=$ac_header_preproc
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_usb_h" >&5
-echo "${ECHO_T}$ac_cv_header_usb_h" >&6
-
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
 fi
 
+    if test -n "${LIBUSB_CONFIG}"; then
+       CFLAGS="`${LIBUSB_CONFIG} --cflags` $CFLAGS"
+       LIBS="`${LIBUSB_CONFIG} --libs` $LIBS"
+    else
+       { { echo "$as_me:$LINENO: error: Can't find libusb" >&5
+echo "$as_me: error: Can't find libusb" >&2;}
+   { (exit 1); exit 1; }; };
+    fi
 
+#    AC_CHECK_HEADER([usb.h],,AC_MSG_ERROR([unable to find usb.h]))
 
-echo "$as_me:$LINENO: checking for usb_init in -lusb" >&5
-echo $ECHO_N "checking for usb_init in -lusb... $ECHO_C" >&6
-if test "${ac_cv_lib_usb_usb_init+set}" = set; then
+echo "$as_me:$LINENO: checking for usb_open in -lusb" >&5
+echo $ECHO_N "checking for usb_open in -lusb... $ECHO_C" >&6
+if test "${ac_cv_lib_usb_usb_open+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -19761,11 +19680,11 @@ extern "C"
 #endif
 /* We use char because int might match the return type of a gcc2
    builtin and then its argument prototype would still apply.  */
-char usb_init ();
+char usb_open ();
 int
 main ()
 {
-usb_init ();
+usb_open ();
   ;
   return 0;
 }
@@ -19782,19 +19701,19 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_cv_lib_usb_usb_init=yes
+  ac_cv_lib_usb_usb_open=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_cv_lib_usb_usb_init=no
+ac_cv_lib_usb_usb_open=no
 fi
 rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_usb_usb_init" >&5
-echo "${ECHO_T}$ac_cv_lib_usb_usb_init" >&6
-if test $ac_cv_lib_usb_usb_init = yes; then
+echo "$as_me:$LINENO: result: $ac_cv_lib_usb_usb_open" >&5
+echo "${ECHO_T}$ac_cv_lib_usb_usb_open" >&6
+if test $ac_cv_lib_usb_usb_open = yes; then
   cat >>confdefs.h <<_ACEOF
 #define HAVE_LIBUSB 1
 _ACEOF
@@ -19838,7 +19757,7 @@ fi
 
 
 PACKAGE=rioutil
-VERSION=1.4.4
+VERSION=1.4.7
 
                                                                                                                                                       ac_config_files="$ac_config_files Makefile librioutil/Makefile include/Makefile src/Makefile man/Makefile spec/Makefile spec/rioutil.spec spec/rioutil-usbdevfs.spec spec/rioutil-libusb.spec man/rioutil.1 linux_driver/Makefile bsd_driver/Makefile debian/Makefile debian/build_dpkg.sh debian/control"
 cat >confcache <<\_ACEOF
@@ -20565,6 +20484,7 @@ s,@BROKEN_CC@,$BROKEN_CC,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t
 s,@WITH_USBDEVS@,$WITH_USBDEVS,;t t
 s,@MACOSX@,$MACOSX,;t t
+s,@LIBUSB_CONFIG@,$LIBUSB_CONFIG,;t t
 s,@WITH_LIBUSB@,$WITH_LIBUSB,;t t
 s,@MACOSX_TRUE@,$MACOSX_TRUE,;t t
 s,@MACOSX_FALSE@,$MACOSX_FALSE,;t t

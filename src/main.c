@@ -1,6 +1,6 @@
 /**
  *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4 main.c
+ *   v1.5 main.c
  *
  *   Console based interface for Rios using librioutil
  *   
@@ -23,9 +23,6 @@
 #include "config.h"
 #endif
 
-#include "rio.h"
-#include "main.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -38,6 +35,8 @@
 
 #include <sys/stat.h>
 #include <dirent.h>
+
+#include <errno.h>
 
 #if defined HAVE_LIBGEN_H
 #include <libgen.h>
@@ -62,6 +61,9 @@ static char *basename(char *p){
 #endif
 
 
+#include "rio.h"
+#include "main.h"
+
 #define MAX_DEPTH_RIO 3
 
 rios_t *current_rio;
@@ -70,10 +72,11 @@ static int is_a_tty;
 static int last_nummarks;
 
 static void progress_no_tty(int x, int X, void *ptr);
-static void new_printfiles(int mflag, int mem_unit);
-void print_info(rio_info_t *info, int type, int mflag, int mem_unit);
+static void new_printfiles(rios_t *rio, int mflag, int mem_unit);
+void print_info(rios_t *rio, int mflag, int mem_unit);
 void enter_shell(rios_t *rio, int mflag, int mem_unit);
 int create_playlist (rios_t *rio, int argc, char *argv[]);
+int overwrite_file (rios_t *rio, int mem_unit, int argc, char *argv[]);
 
 #define max(a, b) ((a > b) ? a : b)
 
@@ -112,6 +115,7 @@ int main (int argc, char *argv[]) {
   int aflag = 0, apush = 0, dflag = 0, uflag = 0, nflag = 0;
   int elvl = 0, bflag = 0;
   int mflag = 0, gflag = 0;
+  int Oflag = 0;
   char *aopt, *uopt = NULL, *dopt = NULL, *copt = NULL;
   char *title = NULL, *artist = NULL, *album = NULL, *name = NULL;
 
@@ -126,6 +130,7 @@ int main (int argc, char *argv[]) {
   int lflag = 0, hflag = 0, iflag = 0, vflag = 0, fflag = 0, cflag = 0;
   int jflag = 0;
   rio_info_t     *info;
+  rios_t rio;
 
   int recovery = 0;
 
@@ -141,16 +146,18 @@ int main (int argc, char *argv[]) {
     {"shell",   0, 0, 'g'},
     {"help",    0, 0, 'h'},
     {"info",    0, 0, 'i'},
-    {"playlist", 0, 0, 'j'},
-    {"update",  1, 0, 'u'},
+    {"playlist",0, 0, 'j'},
+    {"nocolor", 0, 0, 'k'},
+    {"list",    0, 0, 'l'},
+    {"memory",  1, 0, 'm'},
+    {"name",    1, 0, 'n'},
+    {"device",  1, 0, 'o'},
+    {"overwrite",0,0, 'O'},
+    {"pipe",    0, 0, 'p'}, 
+    {"album" ,  1, 0, 'r'},
     {"artist",  1, 0, 's'},
     {"title" ,  1, 0, 't'},
-    {"album" ,  1, 0, 'r'},
-    {"name",    1, 0, 'n'},
-    {"memory",  1, 0, 'm'},
-    {"device",  1, 0, 'o'},
-    {"pipe",    0, 0, 'p'},
-    {"list",    0, 0, 'l'},
+    {"update",  1, 0, 'u'},
     {"version", 0, 0, 'v'},
     {"recovery",0, 0, 'z'}
   };
@@ -167,7 +174,7 @@ int main (int argc, char *argv[]) {
   */
   is_a_tty = isatty(1);
 
-  while((c = getopt_long(argc, argv, "W;a:bgld:ec:u:s:t:r:m:p:o:n:fh?ivgzj",
+  while((c = getopt_long(argc, argv, "W;a:bgld:ec:u:s:t:r:m:p:o:n:fh?ivgzjkO",
 			 long_options, &option_index)) != -1){
     switch(c){
     case 'a':
@@ -266,6 +273,13 @@ int main (int argc, char *argv[]) {
       jflag = 1;
 
       break;
+    case 'k':
+      is_a_tty = 0;
+      break;
+    case 'O':
+      Oflag = 1;
+
+      break;
     case 'z':
       recovery = 1;
 
@@ -287,11 +301,12 @@ int main (int argc, char *argv[]) {
 
   if (!gflag && !bflag && !aflag && !dflag && !uflag &&
       !fflag && !iflag && !lflag && !nflag && !cflag && 
-      !pipeu && !jflag)
+      !pipeu && !jflag && !Oflag)
       usage();
 
   if (recovery && (!fflag || !uflag) && (dflag || aflag || iflag || lflag ||
-					 nflag || gflag || pipeu || cflag)) {
+					 nflag || gflag || pipeu || cflag ||
+					 Oflag)) {
     fprintf (stderr, "Recovery mode (-z) can only be used with -f and -u.\n");
     exit(1);
   }
@@ -301,16 +316,24 @@ int main (int argc, char *argv[]) {
 		pipeu)) {
     fprintf (stderr, "Playlist creation mode cannot take any additional flags.\n");
     exit (1);
+  } else if (Oflag && (gflag || bflag || aflag || dflag || uflag ||
+		       fflag || iflag || lflag || nflag || cflag ||
+		       pipeu || jflag)) {
+    fprintf (stderr, "File overwrite cannot be used with any other options.\n");
+    exit (1);
   }
+
   
   if (!recovery)
     fprintf (stderr, "Attempting to open Rio and retrieve song list....");
   else
     fprintf (stderr, "Attempting to open Rio for recovery....");
 
-  current_rio = open_rio (current_rio, dev, elvl, (recovery)?0:1);
+  ret = open_rio (&rio, dev, elvl, (recovery)?0:1);
 
-  if (!current_rio || !current_rio->dev) {
+  current_rio = &rio;
+
+  if (ret != URIO_SUCCESS) {
       fprintf(stderr, "\n%s not found.\n", dev_string);
       fprintf(stderr, "library tried to use method: %s\n",
 	      return_conn_method_rio ());
@@ -320,51 +343,54 @@ int main (int argc, char *argv[]) {
   
   fprintf (stderr, "done\n");
 
+  /* set the progress bar function */
+  set_progress_rio (&rio, ((is_a_tty) ? progress : progress_no_tty),
+		    NULL);
+
   if (jflag)
-    return create_playlist (current_rio, argc, argv);
+    return create_playlist (&rio, argc, argv);
+
+  if (Oflag)
+    return overwrite_file (&rio, mem_unit, argc, argv);
       
   if (mflag) {
-    if (mem_unit >= return_mem_units_rio (current_rio)) {
+    if (mem_unit >= return_mem_units_rio (&rio)) {
       fprintf(stderr, "Invalid memory unit: %d\n", mem_unit);
       fprintf(stderr, "Max valid memory unit: %d\n",
-	      (current_rio->info.total_memory_units-1));
+	      (rio.info.total_memory_units-1));
       
       return 1;
     }
   }
 
   if (fflag) {
-    if (format_mem_rio (current_rio, mem_unit) == URIO_SUCCESS) {
-        printf("Rio memory format complete.\n");
-        close_rio (current_rio);
+    if (format_mem_rio (&rio, mem_unit) == URIO_SUCCESS) {
+        printf(" Rio memory format complete.\n");
+        close_rio (&rio);
         return 0;
     }
     else {
-        printf("Rio memory format did not complete.\n");
-        close_rio (current_rio);
+        printf(" Rio memory format did not complete.\n");
+        close_rio (&rio);
         return 1;
     }
   }
   
-  /* set the progress bar function */
-  set_progress_rio (current_rio, ((is_a_tty) ? progress : progress_no_tty),
-		    NULL);
-
   if (gflag)
-    enter_shell(current_rio, mflag, mem_unit);
+    enter_shell(&rio, mflag, mem_unit);
 
   /*
     New download routine acts like new delete routine
   */
   if (cflag) {
-      download_track(current_rio, copt, mflag);
-      close_rio (current_rio);
+      download_track(&rio, copt, mflag);
+      close_rio (&rio);
 
       return 0;
   }
 
   if (pipeu) {
-    upload_from_pipe_rio (current_rio, mem_unit, 0 /* stdin */, argv[optind+1], artist,
+    upload_from_pipe_rio (&rio, mem_unit, 0 /* stdin */, argv[optind+1], artist,
 			  album, title, atoi (argv[optind]), atoi (argv[optind+2]),
 			  atoi (argv[optind+3]));
 
@@ -372,61 +398,57 @@ int main (int argc, char *argv[]) {
   }
   
   if (nflag){
-    info = return_info_rio (current_rio);
+    info = return_info_rio (&rio);
 
     sprintf(info->name, name, 16);
 
-    if (set_info_rio (current_rio, info) == URIO_SUCCESS) {
-        printf("rename rio complete.\n");
-	free(info);
-        close_rio (current_rio);
+    if (set_info_rio (&rio, info) == URIO_SUCCESS) {
+        printf ("rename rio complete.\n");
+	free (info);
+        close_rio (&rio);
 
 	return 0;
     } else {
-        printf("rename rio did not complete.\n");
-	free(info);
-        close_rio (current_rio);
+        printf ("rename rio did not complete.\n");
+	free (info);
+        close_rio (&rio);
 
 	return 1;
     }
   }
 
   if (iflag) {
-    info = return_info_rio (current_rio);
-    print_info(info, return_type_rio (current_rio), mflag, mem_unit);
-    free(info);
+    print_info (&rio, mflag, mem_unit);
     
     if (lflag)
       printf("\n");
   }
   
   if (lflag)
-    new_printfiles(mflag, mem_unit);
+    new_printfiles (&rio, mflag, mem_unit);
 
-  if (uflag){
-    printf("Updating firmware, this should take about 30 seconds to complete.\n");
-    if (update_rio (current_rio, uopt) == URIO_SUCCESS) {
-        printf("Rio update completed successfully.\n");
-        close_rio (current_rio);
+  if (uflag) {
+    printf ("Updating firmware, this should take about 30 seconds to complete.\n");
+    if (update_rio (&rio, uopt) == URIO_SUCCESS) {
+        printf (" Rio update completed successfully.\n");
+        close_rio (&rio);
         return 0;
-    }
-    else {
-        printf("Rio update was not completed successfully.\n");
-        close_rio (current_rio);
+    } else {
+        printf (" Rio update was not completed successfully.\n");
+        close_rio (&rio);
         return 1;
     }
   }
 
   /* new delete routine handles new syntax! */
-  if (dflag){
-      if (delete_track(current_rio, dopt, mem_unit) == URIO_SUCCESS) {
-          printf("Rio delete track(s) completed successfully.\n");
-          close_rio (current_rio);
+  if (dflag) {
+      if (delete_track(&rio, dopt, mem_unit) == URIO_SUCCESS) {
+          printf (" Rio delete track(s) completed successfully.\n");
+          close_rio (&rio);
           return 0;
-      }
-      else {
-          printf("Rio delete track(s) did not completed successfully.\n");
-          close_rio (current_rio);
+      } else {
+          printf(" Rio delete track(s) did not completed successfully.\n");
+          close_rio (&rio);
           return 1;
       }
   }
@@ -441,31 +463,32 @@ int main (int argc, char *argv[]) {
   }
 
   if (aflag) {
-    for (i = 0 ; i < return_mem_units_rio (current_rio) ; i++)
+    for (i = 0 ; i < return_mem_units_rio (&rio) ; i++)
       printf("Free space on %s is %03.01f MB.\n",
-	     current_rio->info.memory[i].name,
-	     (float)return_free_mem_rio (current_rio, i) / 1024.0);
+	     rio.info.memory[i].name,
+	     (float)return_free_mem_rio (&rio, i) / 1024.0);
     
-    if (add_track(current_rio) == URIO_SUCCESS) {
-      close_rio (current_rio);
+    if (add_track(&rio) == URIO_SUCCESS) {
+      close_rio (&rio);
 
       return 0;
     } else {
-      close_rio (current_rio);
+      close_rio (&rio);
 
       return 1;
     }
   }
   
-  close_rio (current_rio);
+  close_rio (&rio);
   
   return 0;
 }
 
 static void dir_add_songs (char *filename, int depth, int mem_unit) {
+  struct stat statinfo;
   DIR *dir_fd;
   struct dirent *entry;
-  char *path_temp;
+  char *path_temp = NULL;
 
   if (depth > MAX_DEPTH_RIO)
     return;
@@ -473,11 +496,26 @@ static void dir_add_songs (char *filename, int depth, int mem_unit) {
   dir_fd = opendir (filename);
 
   while (entry = readdir (dir_fd)) {
+    if (path_temp) {
+      free (path_temp);
+      path_temp = NULL;
+    }
+      
     path_temp = calloc (strlen(filename) + strlen(entry->d_name) + 1, 1);
     sprintf (path_temp, "%s/%s", filename, entry->d_name);
 
-    if (entry->d_name[0] != '.')
-      push_top (mem_unit, NULL, NULL, NULL, path_temp, depth + 1);
+    if (entry->d_name[0] == '.')
+      continue;
+
+    if (stat (path_temp, &statinfo) < 0)
+      continue;
+    
+    if (S_ISDIR (statinfo.st_mode)) {
+      dir_add_songs (path_temp, depth + 1, mem_unit);
+      continue;
+    }
+
+    push_top (mem_unit, NULL, NULL, NULL, path_temp, depth + 1);
   }
 
   closedir (dir_fd);
@@ -486,7 +524,7 @@ static void dir_add_songs (char *filename, int depth, int mem_unit) {
 int add_track(rios_t *rio){
   struct upload_stack *p;
   struct stat statinfo;
-  char *tmp;
+  char *file_name, *tfile_name;
   
   int ret;
   int free_size;
@@ -498,7 +536,7 @@ int add_track(rios_t *rio){
   while (p = pop()) {
     if (stat(p->info.filename, &statinfo) < 0) {
       printf("\nCould not stat %s!\n", p->info.filename);
-      return ENOFILE;
+      return -ENOENT;
     }
     
     /* add files in directory */
@@ -511,59 +549,56 @@ int add_track(rios_t *rio){
     if (!S_ISREG(statinfo.st_mode)) {
       printf("\n%s: Not a regular file!\n", p->info.filename);
       
-      return ENOFILE;
+      return -EINVAL;
     }
     
-    tmp = (char *)basename(p->info.filename);
-    if (strlen(tmp) <= 32)
-      printf("%32s ", basename(p->info.filename));
+    tfile_name = strdup (p->info.filename);
+    file_name = basename(p->info.filename);
+    if (strlen(file_name) <= 32)
+      printf("%32s ", file_name);
     else {
       /* long filenames are truncated */
-      tmp = (char *)malloc(32);
-      strncpy(tmp, (char *) basename (p->info.filename), 14);
-      strncpy(tmp + 14, "...", 3);
-      strncpy(tmp + 17, p->info.filename +
+      file_name = (char *)calloc(32, sizeof (char));
+      strncpy(file_name, basename (tfile_name), 14);
+      strncpy(file_name + 14, "...", 3);
+      strncpy(file_name + 17, p->info.filename +
 	      (strlen(p->info.filename) - 14), 14);
-      printf("%32s ", tmp);
+      printf("%32s ", file_name);
       
-      free(tmp);
+      free(file_name);
     }
+
+    free (tfile_name);
     
     printf("[%03.01f MB]: ", (double)statinfo.st_size / 1048576.0);
     
     free_size = return_free_mem_rio (rio, p->info.mem_unit);
     if ( (free_size < statinfo.st_size/1024) &&
-	 (return_mem_units_rio (current_rio) > 1) ) {
+	 (return_mem_units_rio (rio) > 1) ) {
       p->info.mem_unit = ((p->info.mem_unit == 0) ? 1 : 0);
       free_size = return_free_mem_rio (rio, p->info.mem_unit);
     }
     
     if (free_size < statinfo.st_size/1024) {
       printf(" Insufficient space\n");
-      ret = ERIOFULL;
+      free (p->info.filename);
+      ret = -ENOSPC;
       break;
     }
     
-    if ( (ret = add_song_rio (rio, p->info.mem_unit, p->info.filename, 
-			      p->info.artist, p->info.title, p->info.album)) == URIO_SUCCESS )
+    ret = add_song_rio (rio, p->info.mem_unit, p->info.filename, 
+			p->info.artist, p->info.title, p->info.album);
+
+    free (p->info.filename);
+
+    if (ret == URIO_SUCCESS) 
       printf(" Complete [memory %i]\n", p->info.mem_unit);
-    else if (ret == ERIOFULL) {
-      printf(" Incomplete: Insufficient space\n");
-
-      continue;
-    } else if (ret == EUNSUPP) {
-      printf(" Incomplete: Not supported\n");
-
-      continue;
-    } else {
-      printf(" Incomplete: An error occurred\n");
+    else {
+      printf(" Incomplete: %s\n", strerror (-ret));
       break;
-    }	
-
-    if (p->info.recursive_depth != 0)
-      free (p->info.filename);
+    }
   }
-
+  
   return ret;
 }
 
@@ -571,7 +606,8 @@ int add_track(rios_t *rio){
 int delete_track(rios_t *rio, char *dopt, u_int32_t mem_unit) {
   char *current, *next, *end;
   int track, track_end, track_count, i;
-  
+  int ret;
+
   current = dopt + strspn(dopt, " ,");
   next = NULL;
   end = dopt + strlen(dopt) - 1;
@@ -597,11 +633,11 @@ int delete_track(rios_t *rio, char *dopt, u_int32_t mem_unit) {
       track_count = sscanf(current, "%d - %d", &track, &track_end);
       if(track_count == 2) {
         for (i = track; i <= track_end; i++) {
-          if (delete_file_rio (rio, mem_unit, i) == URIO_SUCCESS)
+          if ((ret = delete_file_rio (rio, mem_unit, i)) == URIO_SUCCESS)
             printf("File %i deleted.\n", i);
           else {
             printf("File %i could not be deleted.\n", i);
-            return EDELETE;
+            return ret;
           }
         }
       }
@@ -612,17 +648,18 @@ int delete_track(rios_t *rio, char *dopt, u_int32_t mem_unit) {
     else {
       track_count = sscanf(current, "%d", &track);
       if(track_count == 1) {
-        if (delete_file_rio (rio, mem_unit, track) == URIO_SUCCESS)
+        if ((ret = delete_file_rio (rio, mem_unit, track)) == URIO_SUCCESS)
           printf("File %i deleted.\n", track);
         else {
           printf("File %i could not be deleted.\n", track);
-          return EDELETE;
+          return ret;
         }
       }
     }
 
     current = next;
   }
+
   return URIO_SUCCESS;
 }
 
@@ -656,9 +693,10 @@ int download_track(rios_t *rio, char *copt, u_int32_t mem_unit){
       else {
 	printf("\nFile %i could not be downloaded.\n", atoi(copt));
 	
-	if (ret == EUNSUPP)
+	if (ret == -EPERM)
 	  printf ("Player does not support downloading\n");
-	return -1;
+
+	return ret;
       }
     }
     
@@ -698,10 +736,10 @@ int download_track(rios_t *rio, char *copt, u_int32_t mem_unit){
     else {
       printf("\nFile %i could not be downloaded.\n", atoi(copt));
       
-      if (ret == EUNSUPP)
+      if (ret == -EPERM)
 	printf ("Player does not support downloading\n");
 
-      return -1;
+      return ret;
     }
     
     /*
@@ -719,10 +757,10 @@ int download_track(rios_t *rio, char *copt, u_int32_t mem_unit){
     else {
       printf("\nFile %i could not be downloaded.\n", atoi(copt));
       
-      if (ret == EUNSUPP)
+      if (ret == -EPERM)
 	printf ("Player does not support downloading\n");
 
-      return -1;
+      return ret;
     }
   }
         
@@ -738,7 +776,7 @@ static int intwidth(int i) {
   return ((j > 10) ? 10 : j);
 }
 
-static void new_printfiles(int mflag, int mem_unit) {
+static void new_printfiles(rios_t *rio, int mflag, int mem_unit) {
   file_list *tmpf;
   int j;
   int id_width;
@@ -759,13 +797,13 @@ static void new_printfiles(int mflag, int mem_unit) {
     num_mem_units = 1;
   } else {
     start_mem_unit = 0;
-    num_mem_units = return_mem_units_rio (current_rio);
+    num_mem_units = return_mem_units_rio (rio);
   }
   
   flst = (file_list**) malloc(sizeof(file_list *) * num_mem_units);
   
   for (j = start_mem_unit ; j < (start_mem_unit + num_mem_units); ++j) {
-    flst[j] = return_list_rio (current_rio, j, RALL);
+    flst[j] = return_list_rio (rio, j, RALL);
     
     for (tmpf = flst[j]; tmpf ; tmpf = tmpf->next) {
       max_title_width = max(max_title_width,strlen(tmpf->title));
@@ -801,7 +839,7 @@ static void new_printfiles(int mflag, int mem_unit) {
     if (is_a_tty)
       printf("[%im", 33 + j);
 
-    printf("%s:\n", current_rio->info.memory[j].name);
+    printf("%s:\n", rio->info.memory[j].name);
 
     if (is_a_tty)
       printf("[m");
@@ -860,6 +898,7 @@ void usage(void){
 #else
   printf("  -o, --device=<int>     minor number of rio (assigned by driver), /dev/urio?\n");
 #endif
+  printf("  -k, --nocolor          supress ansi color\n");
   printf("  -m, --memory=<int>     memory unit to upload/download/delete/format to/from\n");
   printf("  -e, --debug            increase verbosity level.\n");
   printf("  -z, --recovery         use recovery mode. for use with players in \"upgrader\" mode\n");
@@ -898,7 +937,7 @@ void progress (int x, int X, void *ptr) {
       putchar(NO_HASH);
   }
 
-  printf("[m] [37m%3i[m%%", percent);
+  printf("[m] [37;40m%3i[m%%", percent);
 
   if (x != X)
     for (i = 0 ; i < (TOTAL_MARKS + 9) ; i++) putchar('\b');
@@ -931,7 +970,7 @@ void push(int mem_unit, char *title, char *artist, char *album,
   (*p)->info.title = title;
   (*p)->info.artist = artist;
   (*p)->info.album = album;
-  (*p)->info.filename = filename;
+  (*p)->info.filename = strdup (filename);
   (*p)->info.recursive_depth = recursive_depth;
 
   (*p)->next = NULL;
@@ -949,7 +988,7 @@ void push_top (int mem_unit, char *title, char *artist, char *album,
   p->info.title = title;
   p->info.artist = artist;
   p->info.album = album;
-  p->info.filename = filename;
+  p->info.filename = strdup (filename);
   p->info.recursive_depth = recursive_depth;
 }
 
@@ -977,26 +1016,43 @@ void version(void){
   exit (0);
 }
 
-void print_info(rio_info_t *info, int type, int mflag, int mem_unit) {
+void print_info(rios_t *rio, int mflag, int mem_unit) {
   int i, j, ticks, ttime;
   int start_mem_unit, num_mem_units;
   int nfiles;
   int ptt = 0, ptf = 0;
   float ptu, used, free_mem;
-
+  rio_info_t *info;
   float size_div, total;
+  int type;
+
+  u_int8_t serial_number[16];
+
+  type = return_type_rio (rio);
+  info = return_info_rio (rio);
+  return_serial_number_rio (rio, serial_number);
 
   if (mflag) {
     start_mem_unit = mem_unit;
     num_mem_units = 1;
   } else {
     start_mem_unit = 0;
-    num_mem_units = return_mem_units_rio (current_rio);
+    num_mem_units = return_mem_units_rio (rio);
   }
 
   size_div = 1024.0;
-  
-  printf("[37mName[m: %s\n", info->name);
+
+  if (is_a_tty)
+    printf("[37;40mName[m: %s\n", info->name);
+  else
+    printf("Name: %s\n", info->name);
+
+  printf ("Serial Number: ");
+
+  for (i = 0 ; i < 16 ; i++)
+    printf ("%02x", serial_number[i]);
+
+  printf ("\n");
 
   /* these values cannot be read/changed with the current S-Series firmware, so
      dont bother printing anything */
@@ -1023,23 +1079,31 @@ void print_info(rio_info_t *info, int type, int mflag, int mem_unit) {
     printf("Backlight: %s\n", lightStates[info->light_state]);
 
   }
-    
-  printf("\n[37mFirmware Version[m: %01.02f\n", info->version);
-  
-  printf("[37mMemory units[m: %i\n\n", return_mem_units_rio (current_rio));
-    
+
+  if (is_a_tty) {
+    printf("\n[37:30mFirmware Version[m: %01.02f\n", info->version);
+
+    printf("[37:30mMemory units[m: %i\n\n", return_mem_units_rio (rio));
+  } else {
+    printf("\nFirmware Version: %01.02f\n", info->version);
+
+    printf("Memory units: %i\n\n", return_mem_units_rio (rio));
+  }
+
   for (j = start_mem_unit ; j < (start_mem_unit + num_mem_units); j++) {
-    printf("Memory unit %i: %s\n", j, current_rio->info.memory[j].name);
+    printf("Memory unit %i: %s\n", j, rio->info.memory[j].name);
     
-    total    = (float) return_total_mem_rio (current_rio, j) / size_div;
-    used     = (float) return_used_mem_rio (current_rio, j)  / size_div;
-    free_mem = (float) return_free_mem_rio (current_rio, j)  / size_div;
-    nfiles   = return_num_files_rio (current_rio, j);
-    ttime    = return_time_rio (current_rio, j);
+    total    = (float) return_total_mem_rio (rio, j) / size_div;
+    used     = (float) return_used_mem_rio (rio, j)  / size_div;
+    free_mem = (float) return_free_mem_rio (rio, j)  / size_div;
+    nfiles   = return_num_files_rio (rio, j);
+    ttime    = return_time_rio (rio, j);
       
     ticks = 50 * (used / total);
     
-    printf("[%im", 33 + j);
+    if (is_a_tty)
+      printf("[%im", 33 + j);
+
     printf("Free: %03.01f MB (", free_mem);
     printf("%03.01f MB Total)\n", total);
     printf("Used: %03.01f MB in %i files\n", used, nfiles);
@@ -1060,13 +1124,17 @@ void print_info(rio_info_t *info, int type, int mflag, int mem_unit) {
     ptt += ttime;
     ptu += used;
     ptf += nfiles;
-        
-    printf("[m\n");
+
+    if (is_a_tty)
+      printf("[m\n");
   }
 
   printf("Player Space Used: %03.01f MB in %i files\n", used, nfiles);
   printf("Total Player Time: %02i:%02i:%02i\n", (int)ptt / 3600, 
 	 (int)(ptt % 3600) / 60, (int)ptt % 60);
+
+
+  free (info);
 }
 
 #define PROMPT "% "
@@ -1105,7 +1173,7 @@ void enter_shell(rios_t *rio, int mflag, int mem_unit){
 		  (strstr(this_line, "get info") == this_line) ){
 	    rio_info_t *info = return_info_rio (rio);
 
-	    print_info(info, return_type_rio(rio), mflag, memory);
+	    print_info(rio, mflag, memory);
 	} else if ( (strstr(this_line, "format") == this_line) ||
 		    (strstr(this_line, "erase") == this_line) ){
 	    if (format_mem_rio (rio, memory) == URIO_SUCCESS)
@@ -1140,7 +1208,7 @@ void enter_shell(rios_t *rio, int mflag, int mem_unit){
 
 	    download_track(rio, tmp + 1, memory);
 	} else if (strstr(this_line, "list") == this_line){
-	    new_printfiles(mflag, memory);
+	    new_printfiles(rio, mflag, memory);
 	} else if ( (strstr(this_line, "help") == this_line) ||
 		    (strstr(this_line, "?") == this_line) ) {
 	    print_commands();
@@ -1178,12 +1246,28 @@ int create_playlist (rios_t *rio, int argc, char *argv[]) {
   ret = create_playlist_rio (rio, argv[optind-1], songs, mems, nsongs);
 
   if (ret < 0)
-    fprintf (stderr, "Could not create playlist!\n");
+    fprintf (stderr, " Could not create playlist!\n");
   else
-    fprintf (stderr, "Playlist creation successfull.\n");
+    fprintf (stderr, " Playlist creation successfull.\n");
 
   free (mems);
   free (songs);
 
   return 0;
+}
+
+int overwrite_file (rios_t *rio, int mem_unit, int argc, char *argv[]) {
+  int song;
+  int ret;
+
+  sscanf (argv[optind], "%d", &song);
+  printf ("Overwriting %s with contents of %s\n", argv[optind], argv[optind+1]);
+  ret = overwrite_file_rio (rio, mem_unit, song, argv[optind+1]);
+
+  if (ret < 0)
+    printf (" Error %i\n", ret);
+  else
+    printf (" Complete\n");
+
+  return ret;
 }

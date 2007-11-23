@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <errno.h>
+
 #include "rio_internal.h"
 #include "driver.h"
 
@@ -35,10 +37,7 @@ int read_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size) {
   if (ret < 0)
     return ret;
 
-  if (rio->debug > 1 || (rio->debug > 0 && size <= 64)) {
-    rio_log (rio, 0, "Dir: In\n");
-    pretty_print_block(buffer, size);
-  }
+  rio_log_data (rio, "In", buffer,size);
   
   return URIO_SUCCESS;
 }
@@ -53,17 +52,13 @@ int write_cksum_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksu
   if (ptr != NULL)
     intp[2] = crc32_rio(ptr, size);
   
-  bcopy (cksum_hdr, rio->buffer, 8);
+  memcpy (rio->buffer, cksum_hdr, 8);
 
   ret = write_bulk (rio, rio->buffer, 64);
-  if (ret < 0) {
-    return EWRITE;
-  }
+  if (ret < 0)
+    return ret;
   
-  if (rio->debug > 0) {
-    rio_log (rio, 0, "Dir: Out\n");
-    pretty_print_block(rio->buffer, 64);
-  }
+  rio_log_data (rio, "Out", rio->buffer, 64);
 
   return URIO_SUCCESS;
 }
@@ -78,7 +73,7 @@ int write_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksu
     if (rio->abort) {
       rio->abort = 0;
       rio_log (rio, 0, "aborting transfer\n");
-      return -1;
+      return -EINTR;
     }
 
     if ((ret = write_cksum_rio (rio, ptr, size, cksum_hdr)) != URIO_SUCCESS)
@@ -86,27 +81,22 @@ int write_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksu
   }
   
   ret = write_bulk (rio, ptr, size);
-  if (ret < 0) {
-    return EWRITE;
-  }
+  if (ret < 0)
+    return ret;
   
-  if ( ((rio->debug > 0) && (size <= 64)) || (rio->debug > 2) ) {
-    rio_log (rio, 0, "Dir: Out\n");
-    pretty_print_block(ptr, size);
-  }
+  rio_log_data (rio, "Out", ptr, size);
   
   if (cksum_hdr != NULL) {
     usleep(1000);
   }
   
   ret = read_block_rio (rio, NULL, 64);
-  if (ret < 0) {
-    return EWRITE;
-  }
+  if (ret < 0)
+    return ret;
   
   if ( (cksum_hdr) && strstr(cksum_hdr, "CRIODATA") && (strstr(rio->buffer, "SRIODATA") == NULL) ) {
-    rio_log (rio, EWRITE, "second SRIODATA not found\n");
-    return EWRITE;
+    rio_log (rio, -EIO, "second SRIODATA not found\n");
+    return -EIO;
   }
   
   return URIO_SUCCESS;
@@ -118,9 +108,9 @@ int send_command_rio (rios_t *rio, int request, int value, int index) {
   int ret = URIO_SUCCESS;
 
   if (cretry > 3)
-    return ECOMMAND;
+    return -ENODEV;
   else if (!rio || !rio->dev)
-    return ENOINST;
+    return -EINVAL;
   
   if (rio->debug > 1) {
     rio_log (rio, 0, "\nCommand:\n");
@@ -134,11 +124,9 @@ int send_command_rio (rios_t *rio, int request, int value, int index) {
   }
 
   if (control_msg(rio, RIO_DIR_IN, request, value, index, 0x0c, rio->cmd_buffer) < 0)
-    return ECOMMAND;
+    return -ENODEV;
   
-  if (rio->debug > 1) {
-    pretty_print_block(rio->cmd_buffer, 0xc);
-  }
+  rio_log_data (rio, "Command", rio->cmd_buffer, 0xc);
 
   if (rio->cmd_buffer[0] != 0x1 && request != 0x66) {
     cretry++;
@@ -163,6 +151,8 @@ int abort_transfer_rio(rios_t *rio) {
   ret = write_bulk (rio, rio->buffer, 64);
   if (ret < 0)
     return ret;
+
+  rio_log_data (rio, "Out", rio->buffer, 64);
   
   ret = send_command_rio (rio, 0x66, 0, 0);
   if (ret < 0)

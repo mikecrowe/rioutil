@@ -1,6 +1,6 @@
 /**
  *   (c) 2001-2004 Nathan Hjelm <hjelmn@users.sourceforge.net>
- *   v1.4 rio_internal.h
+ *   v1.4.6.3 rio_internal.h
  *
  *   header file for librioutil internal functions
  *   
@@ -19,10 +19,18 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  **/
 
- /* KELLY: 08-21-03
+/* KELLY: 08-21-03
  * The only thing in this file that seems to have changed from 1.3.3(riot) to 1.3.4
  * is the _rio_file structure.  Initial stab at getting the structure correct for the
- * Rio RIOT.  The changes have _not_ been checked to see if other players are effected
+ * Rio RIOT.  The changes have _not_ been checked to see if other players are effected.
+ */
+
+/* NOACK: 09-05-04
+ * The riot needs an extra field in the _rio_file structure to sort the tracks
+ * inside an album.
+ * The riot specific part of the _rio_file structure seems to be identical to
+ * the hd_file_t structure, so it's save to assume, that the trackno is stored
+ * at the same offset as in hd_file_t, where it can be fount at 0xf9.
  */
 
 #if !defined (_RIO_INTERNAL_H)
@@ -134,14 +142,16 @@ Group ID                0x7c   ????            ????               64            
 #define UNKNOWN11  0x7f
 #define UNKNOWN12  0x80 /* on S-Series, after command, can read 128B off the Rio */
 #define RIO_RIOTF  0x82 /* on Riot, Rio sends playlist */
+#define RIO_CHGIN  0x85 /* on S-Series and newer, change info about a file */
+#define RIO_OVWRT  0x88 /* on S-Series and newer, replace a file */
 
 /***
 
   Other defines
 
 ***/
-#define RIO_MTS       2048
-#define RIO_FTS       0x4000
+#define RIO_MTS   0x00000800
+#define RIO_FTS   0x00004000
 
 /*
   file types
@@ -185,18 +195,34 @@ typedef struct _rio_mem {
 } rio_mem_t;
 
 typedef struct _rio_desc {
+  /* 0x00 - 0x0f */
   u_int32_t unk0;
   u_int32_t fw_version;
   u_int32_t unk1;
   u_int32_t unk2;
 
+  /* 0x10 - 0x3f */
   u_int8_t  unk3[48];
+
+  /* 0x40 - 0x5f */
   u_int8_t  name[32];
-  u_int8_t  unk4[32];
+
+  /* 0x60 - 0x6f */
+  u_int8_t  serial_number[16];
+
+  /* 0x70 - 0x7f */
+  u_int8_t  unk4[16];
+
+  /* 0x80 - 0x9f */
   u_int8_t  player_model[32];
+
+  /* 0xa0 - 0xbf */
   u_int8_t  hd_model[32];
+
+  /* 0xc0 - 0xdf */
   u_int8_t  vendor[32];
 
+  /* 0xe0 - 0xff */
   u_int8_t  unk5[32];
 } rio_desc_t;
 
@@ -287,96 +313,104 @@ typedef struct _rio_file {
   u_int8_t temp1[68];
   
   /* 0x204 - 0x0207
-  * Start of matching the short entry list 0x200-0x2ff
-  * The RIOT needs to have this set.  Not sure what the
-  * effect will be on the other types of players.  If it
-  * is negative then we need to create a new structure
-  * structure for the RIOT.
-  */
+   * Start of matching the short entry list 0x200-0x2ff
+   * The RIOT needs to have this set.  Not sure what the
+   * effect will be on the other types of players.  If it
+   * is negative then we need to create a new structure
+   * structure for the RIOT.
+   */
   u_int32_t riot_file_no;
-
+  
   /* 0x0208 - 0x020b 
-  * space holder to push the file_number to the proper place. 
-  * filled with 00's as far as I can tell
-  */
+   * space holder to push the file_number to the proper place. 
+   * filled with 00's as far as I can tell
+   */
   u_int8_t temp2[4];
   
   /* 0x020c - 0x020f 
-  * This seems to always be set to:
-  * 30 31 20 2d - I'm not sure if this is the same on all
-  * RIOT's.  It's in every entry on mine.
-  */
+   * This seems to always be set to:
+   * 30 31 20 2d - I'm not sure if this is the same on all
+   * RIOT's.  It's in every entry on mine.
+   */
   u_int32_t file_prefix;
   
   /* 0x0210
-  * Demarc for filename start always 0x20 
-  */
+   * Demarc for filename start always 0x20 
+   */
   u_int8_t demarc;
   
   /* 0x0211 - 0x022b 
-  * File name? - Seems to do odd things to the file name.
-  * may effect the actual downloading of items from the RIOT
-  */
+   * File name? - Seems to do odd things to the file name.
+   * may effect the actual downloading of items from the RIOT
+   */
   u_int8_t name2[27];
   
   /* 0x022c - 0x025b 
-  * Used in the RIOT for the list of Titles
-  */
+   * Used in the RIOT for the list of Titles
+   */
   u_int8_t title2[48];
   
   /* 0x025c - 0x028b 
-  * Uesd in the RIOT for selecting artists
-  */
+   * Uesd in the RIOT for selecting artists
+   */
   u_int8_t artist2[48];
   
   /* 0x28c - 0x02bb 
-  * Used in the RIOT for selecting Albums 
-  */ 
+   * Used in the RIOT for selecting Albums 
+   */ 
   u_int8_t album2[48];
   
   /* 0x02bc - 0x02cb 
-  * This area is used in the RIOT for the genre select. 
-  */
+   * This area is used in the RIOT for the genre select. 
+   */
   u_int8_t genre2[16];
 
   /* 0x02cc - 0x02d1 
-  * 'zeros' may be part of the 'genre' field 
-  */
+   * 'zeros' may be part of the 'genre' field 
+   */
   u_int8_t temp3[6];
 
   /* 0x02d2 - 0x02d5 
-  * Year song was produced.  This field is used by the RIOT for
-  * one of the 'play' options called 'sounds of...' will play
-  * songs from the 40's 50's 60's, etc.
-  */
+   * Year song was produced.  This field is used by the RIOT for
+   * one of the 'play' options called 'sounds of...' will play
+   * songs from the 40's 50's 60's, etc.
+   */
   u_int8_t year2[4];
 
   /* 0x02d6 - 0x02eb 
-  * Not sure what goes here.  there is a single value at: 0x02d8 
-  */
+   * Not sure what goes here.  there is a single value at: 0x02d8 
+   */
   u_int8_t temp4[22];
   
   /* 0x02ec - 0x02ef 
-  * This is the time in seconds for the song 
-  */
+   * This is the time in seconds for the song 
+   */
   u_int32_t time2;
   
   /* 0x02f0 - 0x02f3 
-  * Seems to be empty 
-  */
+   * Seems to be empty 
+   */
   u_int32_t temp5;
   
   /* 0x02f4 - 0x2f7 
-  * This must be written for the
-  * RIOT to be able to at least 'see' the song.
-  */
+   * This must be written for the
+   * RIOT to be able to at least 'see' the song.
+   */
   u_int32_t size2;
   
+  /* 0x02f8 - 0x02f9 
+   * This seems to be the trackno, that is used to sort the files of an
+   * album.
+   * Seemingly, the number is saved in 0x2f9, but if an album has more than
+   * 255 tracks, there might be need for more.
+   */
+  u_int8_t unk8;
+  u_int8_t trackno2;
+
   /* 0x02f8 - 0x07ff 
-  * remaining space in the structure 
-  */
-  u_int8_t temp6[1288];
-  
+   * remaining space in the structure 
+   */
+  u_int8_t temp6[1286];  
 } rio_file_t;
 
 typedef struct _hd_file {
@@ -406,11 +440,13 @@ typedef struct _hd_file {
   u_int32_t unk6;
   /* 0x00F4 - 0x00F7 */
   u_int32_t size;
-  /* 0x00F8 - 0x00FB */
-  u_int32_t unk8;
+  /* 0x00F8 - 0x00F9 */
+  u_int8_t unk8;
+  u_int8_t trackno;
+  /* 0x00FA - 0x00FB */
+  u_int16_t unk9;
   /* 0x00FC - 0x00FF */
-  u_int32_t unk9;
-  
+  u_int32_t unk10;  
 } hd_file_t;
 
 typedef struct _rio_prefs {
@@ -496,51 +532,37 @@ typedef struct _riot_rio_prefs {
 ***/
 
 void rio_log      (rios_t *rio, int error, char *format, ...);
+void rio_log_data (rios_t *rio, char *dir, char *data, int data_size);
+
 int  wake_rio     (rios_t *rio);
 int  try_lock_rio (rios_t *rio);
 void unlock_rio   (rios_t *rio);
 
 /* rio.c : used to build a rios_t */
-int set_time_rio (rios_t *rio);
-int return_intrn_info_rio (rios_t *rio);
-int get_flist_riomc (rios_t *rio, u_int8_t memory_unit, int *total_time, int *num_files, file_list **head);
-int get_flist_riohd (rios_t *rio, u_int8_t memory_unit, int *total_time, int *num_files, file_list **head);
-int return_mem_list_rio (rios_t *rio, mem_list *list);
 int get_file_info_rio (rios_t *rio, rio_file_t *file, u_int8_t memory_unit, u_int16_t file_no);
 int get_memory_info_rio (rios_t *rio, rio_mem_t *memory, u_int8_t memory_unit);
 int first_free_file_rio (rios_t *rio, u_int8_t memory_unit);
 
 void free_info_rio (rios_t *rio);
 
-/* used by add_song_rio */
-int add_file_rio         (rios_t *rio, u_int8_t memory_unit, char *file_name, int skip);
-int init_upload_rio      (rios_t *rio, u_int8_t memory_unit);
-int bulk_upload_rio      (rios_t *rio, info_page_t info, int addpipe);
-int complete_upload_rio  (rios_t *rio, u_int8_t memory_unit, info_page_t info);
-
-
 /* rioio.c */
-int read_block_rio     (rios_t *rio, unsigned char *ptr, u_int32_t size);
-int write_cksum_rio    (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksum_hdr);
-int write_block_rio    (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksum_hdr);
+int read_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size);
+int write_cksum_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksum_hdr);
+int write_block_rio (rios_t *rio, unsigned char *ptr, u_int32_t size, char *cksum_hdr);
 int abort_transfer_rio (rios_t *rio);
-int send_command_rio   (rios_t *rio, int request, int value, int index);
+int send_command_rio (rios_t *rio, int request, int value, int index);
 
 /* id3.c */
 int get_id3_info (char *file_name, rio_file_t *mp3_file);
 
-/* mp3.c, wma.c, downloadable.c, playlist.c */
-int mp3_info             (info_page_t *newInfo, char *file_name);
-int wma_info             (info_page_t *newInfo, char *file_name);
-int downloadable_info    (info_page_t *newInfo, char *file_name);
-
-/* file_name should look like Playlist01.lst */
-int playlist_info        (info_page_t *newInfo, char *file_name);
+/* mp3.c, downloadable.c, playlist.c */
+int mp3_info (info_page_t *newInfo, char *file_name);
+int downloadable_info (info_page_t *newInfo, char *file_name);
+int playlist_info (info_page_t *newInfo, char *file_name);
 int new_playlist_info (info_page_t *newInfo, char *file_name, char *name);
 
-
 /* cksum.c */
-unsigned int    crc32_rio            (unsigned char *, unsigned int);
+unsigned int crc32_rio (unsigned char *, unsigned int);
 
 
 #if defined (__FreeBSD__) || defined(__MacOSX__)

@@ -1,4 +1,4 @@
-.TH @PACKAGE@ "1" "09 January 2003" "Version @VERSION@" "Unix Rio Utility"
+.TH @PACKAGE@ "1" "20 January 2004" "Version @VERSION@" "Unix Rio Utility"
 
 .SH Name
 	@PACKAGE@ \- Unix Rio Utility
@@ -8,19 +8,11 @@
 .PP
 rioutil is a program designed to interface with Sonic Blue's Rio 600/800/900/Riot/S-Series and psa[play.
 .TP
-\fB\-v\fR, \fB\-\-version\fR
-print version number of rioutil
-.TP
-\fB\-o\fR, \fB\-\-device=int\fR
-specify the minor number of the rio. (doesnt work right now)
-.TP
-\fB\-m\fR, \fB\-\-memory=int\fR
-specify which memory device to use.
-internal = 0
-external = 1
-.TP
 \fB\-l\fR, \fB\-\-list\fR
 list files currently on the rio.
+.TP
+\fB\-i\fR, \fB\-\-info\fR
+return info about rio. i.e. name, memory, etc..
 .TP
 \fB\-j\fR, \fB\-\-playlist\fR <name> <list of mem_unit,song>
 create a playlist with name on an S-Series or newer Rio
@@ -29,14 +21,32 @@ example (create the playlist fubar with song 0 on mem_unit 0 and song 1 on mem_u
 .IP \(bu 4
 rioutil -j fubar 0,0 1,0
 .TP
-\fB\-i\fR, \fB\-\-info\fR
-return info about rio. i.e. name, memory, etc..
-.TP
 \fB\-n\fR, \fB\-\-name=string\fR
 rename the rio. 15 Chars MAX
 .TP
+\fB\-v\fR, \fB\-\-version\fR
+print version number of rioutil
+.TP
 \fB\-?\fR, \fB\-h\fR, \fB--help\fR
 show simple help screen 
+.SH Options
+.TP
+\fB\-e\fR, \fB\-\-debug\fR
+increase debug level -eee yields full verbosity
+.TP
+\fB\-k\fR, \fB\-\-nocolor\fR
+supress ansi color output
+.TP
+\fB\-z\fR, \fB\-\-recovery\fR
+use recovery mode. works with -f or -u
+.TP
+\fB\-o\fR, \fB\-\-device=int\fR
+specify the minor number of the rio. (doesnt work right now)
+.TP
+\fB\-m\fR, \fB\-\-memory=int\fR
+specify which memory device to use.
+internal = 0
+external = 1
 .SH Uploading
 .TP
 \fB\-a\fR, \fB\-\-upload=string\fR

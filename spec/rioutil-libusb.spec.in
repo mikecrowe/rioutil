@@ -38,4 +38,5 @@ rm -rf $RPM_BUILD_ROOT
 %{prefix}/man/man1/rioutil.1*
 %{prefix}/include/rio.h
 %{prefix}/lib/librioutil*.la
+%{prefix}/lib/librioutil*.a
 %{prefix}/lib/librioutil*.so*

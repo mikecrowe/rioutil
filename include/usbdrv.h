@@ -24,7 +24,7 @@
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
- *  $Id: usbdrv.h,v 1.4 2003/08/06 15:56:25 hjelmn Exp $	 
+ *  $Id: usbdrv.h,v 1.5 2004/06/07 16:31:48 hjelmn Exp $	 
  *
  *  History:
  *   0.1  07.01.2000  Created
@@ -100,10 +100,6 @@ extern int riousb_setinterface(struct usbdevice *dev, unsigned int intf, unsigne
 extern int riousb_getdevicedescriptor(struct usbdevice *dev, struct usb_device_descriptor *desc);
 extern int riousb_claiminterface(struct usbdevice *dev, unsigned int intf);
 extern int riousb_releaseinterface(struct usbdevice *dev, unsigned int intf);
-extern int riousb_discsignal(struct usbdevice *dev, unsigned int signr, void *context);
-extern int riousb_submiturb(struct usbdevice *dev, struct usbdevfs_urb *urb);
-extern int riousb_discardurb(struct usbdevice *dev, struct usbdevfs_urb *urb);
-extern struct usbdevfs_urb *riousb_reapurb(struct usbdevice *dev, unsigned int nonblock);
 
 
 /* --------------------------------------------------------------------- */
