@@ -92,7 +92,6 @@ static void aborttransfer (int sigraised) {
 
 /******************/
 
-
 int main (int argc, char *argv[]) {
   int c, option_index;
 
@@ -748,8 +747,8 @@ static void usage (void) {
 }
 
 void progress (int x, int X, void *ptr) {
-  int nummarks = (x * TOTAL_MARKS) / X;
-  int percent = (x * 100) / X;
+  int nummarks = ((int64_t)x * TOTAL_MARKS) / X;
+  int percent = ((int64_t)x * 100) / X;
   char m[] = "-\\|/";
   char HASH_MARK;
   int i;
