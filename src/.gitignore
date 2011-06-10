@@ -1,2 +1,4 @@
 rioutil
 Makefile
+.deps
+.libs
