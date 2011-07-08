@@ -50,7 +50,7 @@
 char *basename_simple (char *x){
   int i;
  
-  for (i = strlen(x) - 1 ; x[i] != '/'; i--);
+  for (i = strlen(x) - 1 ; (i>=0) && (x[i] != '/'); i--);
 
   return ((i == strlen(x) - 1) ? NULL : &x[i+1]);
 }
