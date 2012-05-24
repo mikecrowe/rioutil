@@ -1,7 +1,7 @@
 Source: rioutil
 Section: sound
 Priority: optional
-Maintainer: Nathan Hjelm <hjelmn@users.sourceforge.net>
+Maintainer: Mike Crowe <mac@mcrowe.com>
 Build-Depends: debhelper (>> 3.0.0), libusb-dev, zlib1g-dev, dpatch
 Standards-Version: 3.6.1
 
