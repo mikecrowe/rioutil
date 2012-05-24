@@ -1,0 +1,8 @@
+#!/bin/sh
+set -xe
+# It's not clear why we need to run libtoolize - autoreconf is
+# supposed to do it but if we don't autoreconf whinges about a lack of
+# ltmain.sh
+libtoolize
+autoreconf --install --force
+./configure
