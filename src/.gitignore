@@ -2,3 +2,4 @@ rioutil
 Makefile
 .deps
 .libs
+Makefile.in

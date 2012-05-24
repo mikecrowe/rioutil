@@ -1,0 +1,7 @@
+files
+Makefile.in
+rioutil/
+rioutil.debhelper.log
+rioutil.postinst.debhelper
+rioutil.postrm.debhelper
+rioutil.substvars
