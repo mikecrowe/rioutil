@@ -38,6 +38,9 @@
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
+#ifdef HAVE_ICONV
+#include <iconv.h>
+#endif
 
 #define ID3FLAG_EXTENDED 0x40
 #define ID3FLAG_FOOTER   0x10
@@ -230,6 +233,7 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
     
     for (i = 0 ; i < tag_datalen ; ) {
       size_t length = 0;
+      size_t out_length = 0;
       
       fread (tag_data, 1, (id3v2_majorversion > 2) ? 10 : 6, fh);
       
@@ -286,11 +290,23 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	break;
       case 0x01:
 	sprintf (encoding, "UTF-16LE");
-	tag_temp += 3;
+
+	// Skip BOM
+	if (length > 2 && tag_temp[1] == 0xff && tag_temp[2] == 0xfe) {
+	  length -= 2;
+	  tag_temp += 3;
+	} else
+	    tag_temp ++;
 	break;
       case 0x03:
 	sprintf (encoding, "UTF-16BE");
-	tag_temp++;
+
+	// Skip BOM
+	if (length > 2 && tag_temp[1] == 0xfe && tag_temp[2] == 0xff) {
+	  length -=2;
+	  tag_temp += 3;
+	} else
+	    tag_temp ++;
 	break;
       case 0x04:
 	sprintf (encoding, "UTF-8");
@@ -307,10 +323,10 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
       
       if (strcmp (identifier, ID3_TITLE[newv]) == 0) {
 	dstp = (unsigned char *)mp3_file->title;
-	length = (length > 63) ? 63 : length;
+	out_length = 63;
       } else if (strcmp (identifier, ID3_ARTIST[newv]) == 0) {
 	dstp = (unsigned char *)mp3_file->artist;
-	length = (length > 63) ? 63 : length;
+	out_length = 63;
       } else if (strcmp (identifier, ID3_TRACK[newv]) == 0) {
 	/* some id3 tags have track/total tracks in the TRK field */
 	slash = strchr ((char *)tag_temp, '/');
@@ -322,15 +338,15 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	if (slash) *slash = '/';
       } else if (strcmp (identifier, ID3_ALBUM[newv]) == 0) {
 	dstp = (unsigned char *)mp3_file->album;
-	length = (length > 63) ? 63 : length;
+	out_length = 63;
       } else if (strcmp (identifier, ID3_YEARNEW[newv]) == 0 ||
 		 strcmp (identifier, ID3_YEAR[newv]) == 0) {
 	dstp = mp3_file->year2;
-	length = (length > 4) ? 4 : length;
+	out_length = 4;
       } else if (strcmp (identifier, ID3_GENRE[newv]) == 0) {
 	if (tag_temp[0] != '(') {
 	  dstp = mp3_file->genre2;
-	  length = (length > 22) ? 22 : length;
+	  out_length = 22;
 	} else {
 	  /* 41 is right parenthesis */
 	  for (j = 0 ; (*(tag_temp + 1 + j) != 41) ; j++) {
@@ -348,8 +364,18 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
       } else
 	continue;
       
-      if (dstp)
-	strncpy ((char *)dstp, (char *)tag_temp, length);
+      if (dstp) {
+#ifdef HAVE_ICONV
+	iconv_t ic = iconv_open("UTF-8", encoding);
+	iconv(ic, &tag_temp, &length, &dstp, &out_length);
+	iconv_close(ic);
+#else // !HAVE_ICONV
+	if (out_length > length) {
+	  out_length = length;
+	  strncpy ((char *)dstp, (char *)tag_temp, out_length);
+	}
+#endif // !HAVE_ICONV
+      }
     }    
   } else if (version == 1) {
     char *tmp;
