@@ -300,13 +300,6 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	sprintf (encoding, "ISO-8859-1");
       }
 
-      if (strcmp (identifier, "APIC") != 0 &&
-	  strcmp (identifier, "PIC") != 0) {
-	for ( ; length && *tag_temp == '\0' ; tag_temp++, length--);
-	for ( ; length && *(tag_temp+length-1) == '\0' ; length--);
-	/*      length--; */
-      }
-
       if (length <= 0)
 	continue;
 
