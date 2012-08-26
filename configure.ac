@@ -91,6 +91,7 @@ fi
 
 AM_CONDITIONAL(MACOSX, test "$osx_support" = "yes")
 AM_CONDITIONAL(WITH_LIBUSB, test "$libusb" = "yes")
+AM_ICONV()
 
 PACKAGE=rioutil
 VERSION=1.5.0
