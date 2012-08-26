@@ -108,4 +108,5 @@ AC_OUTPUT([
   man/rioutil.1
   linux_driver/Makefile
   debian/Makefile
+  tests/Makefile
 ])
