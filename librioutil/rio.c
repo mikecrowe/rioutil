@@ -422,6 +422,8 @@ static int return_intrn_info_rio(rios_t *rio) {
 			    + (0.01) * (desc[4] & 0xf));
   memmove (info->serial_number, &desc[0x60], 16);
 
+  info->caps = desc[8] | (desc[9] << 8) | (desc[10] << 16) | (desc[11] << 24);
+
   /*
    * this is where we set which structure to use to fill the
    * prefs

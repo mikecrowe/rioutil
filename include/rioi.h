@@ -166,6 +166,11 @@ Group ID                0x7c   ????            ????               64            
 #define TYPE_WAVE 0x57415645
 #define TYPE_PLS  0x504c5320
 
+/*
+  device capabilities
+*/
+#define CAP_UTF8STRINGS (0x00004000)
+
 /* macros to get memory info in kilobytes */
 #define FREE_SPACE(x) ((return_type_rio(rio) == RIORIOT) ? rio->info.memory[x].free : \
 		       rio->info.memory[x].free / 1024)

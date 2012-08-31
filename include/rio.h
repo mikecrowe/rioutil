@@ -136,6 +136,7 @@ typedef struct _rio_info {
   
   float firmware_version;
   u_int8_t serial_number[16];
+  u_int32_t caps;
 } rio_info_t;
 
 typedef struct _rios {
