@@ -171,6 +171,11 @@ Group ID                0x7c   ????            ????               64            
 */
 #define CAP_UTF8STRINGS (0x00004000)
 
+/*
+ file attributes
+*/
+#define ATTR_UTF8STRINGS (0x01000000)
+
 /* macros to get memory info in kilobytes */
 #define FREE_SPACE(x) ((return_type_rio(rio) == RIORIOT) ? rio->info.memory[x].free : \
 		       rio->info.memory[x].free / 1024)
@@ -612,10 +617,10 @@ int abort_transfer_rio (rios_t *rio);
 int send_command_rio (rios_t *rio, int request, int value, int index);
 
 /* id3.c */
-int get_id3_info (char *file_name, rio_file_t *mp3_file);
+int get_id3_info (char *file_name, rio_file_t *mp3_file, const char *out_encoding);
 
 /* mp3.c, downloadable.c, playlist.c */
-int mp3_info (info_page_t *newInfo, char *file_name);
+int mp3_info (info_page_t *newInfo, char *file_name, rios_t *rio);
 int downloadable_info (info_page_t *newInfo, char *file_name);
 int playlist_info (info_page_t *newInfo, char *file_name);
 int new_playlist_info (info_page_t *newInfo, char *file_name, char *name);

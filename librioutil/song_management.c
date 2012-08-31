@@ -145,7 +145,7 @@ int add_song_rio (rios_t *rio, u_int8_t memory_unit, char *file_name, char *arti
   tmp = file_name + strlen(file_name) - 3;
 
   if (strspn(tmp, "mMpP3") == 3) {
-    error = mp3_info(&song_info, file_name);
+    error = mp3_info(&song_info, file_name, rio);
   
     /* just in case one of the info funcs failed */
     if (error != 0) {

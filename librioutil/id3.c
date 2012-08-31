@@ -62,7 +62,7 @@ char *ID3_ARTWORK[2] = {"PIC", "APIC"};
 static int find_id3 (int version, FILE *fh, unsigned char *tag_data, int *tag_datalen,
 		     int *id3_len, int *major_version);
 static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datalen, int version,
-                                int id3v2_majorversion, rio_file_t *mp3_file);
+                                int id3v2_majorversion, rio_file_t *mp3_file, const char *out_encoding);
 static int synchsafe_to_int (unsigned char *buf, int nbytes);
 
 static int synchsafe_to_int (unsigned char *buf, int nbytes) {
@@ -217,7 +217,7 @@ static char *id3v1_string (unsigned char *unclean) {
   parse_id3
 */
 static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datalen, int version,
-				int id3v2_majorversion, rio_file_t *mp3_file) {
+				int id3v2_majorversion, rio_file_t *mp3_file, const char *out_encoding) {
   int i, j;
   unsigned char *dstp;
   char *slash;
@@ -366,7 +366,7 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
       
       if (dstp) {
 #ifdef HAVE_ICONV
-	iconv_t ic = iconv_open("UTF-8", encoding);
+	iconv_t ic = iconv_open(out_encoding, encoding);
 	iconv(ic, &tag_temp, &length, &dstp, &out_length);
 	iconv_close(ic);
 #else // !HAVE_ICONV
@@ -404,7 +404,7 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
   }
 }
 
-int get_id3_info (char *file_name, rio_file_t *mp3_file) {
+int get_id3_info (char *file_name, rio_file_t *mp3_file, const char *out_encoding) {
   int tag_datalen = 0, id3_len = 0;
   unsigned char tag_data[128];
   int version;
@@ -417,13 +417,13 @@ int get_id3_info (char *file_name, rio_file_t *mp3_file) {
 
   /* built-in id3tag reading -- id3v2, id3v1 */
   if ((version = find_id3(2, fh, tag_data, &tag_datalen, &id3_len, &id3v2_majorversion)) != 0) {
-    one_pass_parse_id3(fh, tag_data, tag_datalen, version, id3v2_majorversion, mp3_file);
+    one_pass_parse_id3(fh, tag_data, tag_datalen, version, id3v2_majorversion, mp3_file, out_encoding);
     has_v2 = 1;
   }
 
   /* some mp3's have both tags so check v1 even if v2 is available */
   if ((version = find_id3(1, fh, tag_data, &tag_datalen, NULL, &id3v2_majorversion)) != 0)
-    one_pass_parse_id3(fh, tag_data, tag_datalen, version, id3v2_majorversion, mp3_file);
+    one_pass_parse_id3(fh, tag_data, tag_datalen, version, id3v2_majorversion, mp3_file, out_encoding);
   
   /* Set the file descriptor at the end of the id3v2 header (if one exists) */
   fseek (fh, id3_len, SEEK_SET);

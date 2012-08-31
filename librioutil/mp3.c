@@ -405,7 +405,7 @@ static int get_mp3_info (char *file_name, rio_file_t *mp3_file) {
   Info structure containing the amount of junk (in bytes)
   and a compete Rio header struct.
 */
-int mp3_info (info_page_t *newInfo, char *file_name){
+int mp3_info (info_page_t *newInfo, char *file_name, rios_t *rio){
   rio_file_t *mp3_file = newInfo->data;
 
   int id3_version;
@@ -417,7 +417,9 @@ int mp3_info (info_page_t *newInfo, char *file_name){
     return -1;
   }
 
-  if ((id3_version = get_id3_info(file_name, mp3_file)) < 0) {
+  const char *out_encoding = (rio->info.caps & CAP_UTF8STRINGS) ? "UTF-8" : "ISO-8859-1//TRANSLIT";
+  
+  if ((id3_version = get_id3_info(file_name, mp3_file, out_encoding)) < 0) {
     free(mp3_file);
     newInfo->data = NULL;
     return -1;
@@ -435,6 +437,9 @@ int mp3_info (info_page_t *newInfo, char *file_name){
   mp3_file->bits     = 0x10000b11;
   mp3_file->type     = TYPE_MP3;
   mp3_file->foo4     = 0x00020000;
+
+  if (rio->info.caps & CAP_UTF8STRINGS)
+      mp3_file->bits |= ATTR_UTF8STRINGS;
 
   return URIO_SUCCESS;
 }
