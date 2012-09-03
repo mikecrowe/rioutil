@@ -141,7 +141,7 @@ int read_bulk(rios_t *rio, unsigned char *buffer, u_int32_t buffer_size){
   read_ep = dev->entry->iep | 0x80;
   ud = dev->dev;
 
-  ret = usb_bulk_read(ud, read_ep, (char *)buffer, buffer_size, 8000);
+  ret = usb_bulk_read(ud, read_ep, (char *)buffer, buffer_size, 20000);
   if (ret < 0) {
     rio_log (rio, ret, "error reading from device (%i). resetting..\n", ret);
     rio_log (rio, ret, "size = %i\n", buffer_size);
