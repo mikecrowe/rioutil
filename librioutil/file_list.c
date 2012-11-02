@@ -241,7 +241,7 @@ int flist_add_rio (rios_t *rio, int memory_unit, info_page_t info) {
   strncpy(flist->title,  info.data->title, 64);
   strncpy(flist->album,  info.data->album, 64);
   strncpy(flist->name,   info.data->name, 64);
-  strncpy(flist->genre,  (char *)info.data->genre2, 22);
+  strncpy(flist->genre,  (char *)info.data->genre2, 17);
 
   strncpy(flist->year,   (char *)info.data->year2, 4);
   
