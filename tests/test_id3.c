@@ -34,6 +34,11 @@ struct File files[] =
 	"Café", "£500",
 	"Caf\xe9", "\xa3""500"
     },
+    {
+	"long.mp3",
+	"More Or Less 20121029 Predicting L'Aquila Earthquake: is it rig", "More Or Less",
+	"More Or Less 20121029 Predicting L'Aquila Earthquake: is it rig", "More Or Less",
+    },
 };
 const file_count = sizeof(files)/sizeof(files[0]);
 

@@ -45,6 +45,8 @@
 #define ID3FLAG_EXTENDED 0x40
 #define ID3FLAG_FOOTER   0x10
 
+#define TAG_DATA_SIZE 65536
+
                        /* v2.2 v2.3 */
 char *ID3_TITLE[2]   = {"TT2", "TIT2"};
 char *ID3_ARTIST[2]  = {"TP1", "TPE1"};
@@ -270,15 +272,15 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	continue;
       }
 
-      if (length > 128) {
-	fseek (fh, length - 128, SEEK_CUR);
+      if (length > TAG_DATA_SIZE) {
+	fseek (fh, length - TAG_DATA_SIZE, SEEK_CUR);
 	if (strcmp (identifier, "APIC") != 0 &&
 	    strcmp (identifier, "PIC") != 0)
-	  length = 128;
+	  length = TAG_DATA_SIZE;
       }
 
-      memset (tag_data, 0, 128);
-      fread (tag_data, 1, (length < 128) ? length : 128, fh);
+      memset (tag_data, 0, TAG_DATA_SIZE);
+      fread (tag_data, 1, (length < TAG_DATA_SIZE) ? length : TAG_DATA_SIZE, fh);
 
       tag_temp = tag_data;
 
@@ -406,7 +408,7 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 
 int get_id3_info (char *file_name, rio_file_t *mp3_file, const char *out_encoding) {
   int tag_datalen = 0, id3_len = 0;
-  unsigned char tag_data[128];
+  unsigned char tag_data[TAG_DATA_SIZE];
   int version;
   int id3v2_majorversion;
   int has_v2 = 0;
