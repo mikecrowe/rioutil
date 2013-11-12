@@ -1,0 +1,12 @@
+# Ensure that Rio MP3 players are accessible to members of the plugdev group
+
+ACTION!="add", GOTO="rio_rules_end"
+SUBSYSTEM!="usb", GOTO="rio_rules_end"
+DRIVER!="usb", GOTO="rio_rules_end"
+
+ATTRS{idProduct}=="5006", GROUP="plugdev"
+ATTRS{idProduct}=="5007", GROUP="plugdev"
+ATTRS{idProduct}=="5008", GROUP="plugdev"
+ATTRS{idProduct}=="5009", GROUP="plugdev"
+
+LABEL="rio_rules_end"

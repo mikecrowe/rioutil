@@ -56,6 +56,7 @@ install: build
 	SED=sed $(MAKE) install DESTDIR=$(CURDIR)/debian/rioutil
 	cd debian/rioutil/usr/share/man/man1; ln -s rioutil.1 riofck.1
 	install -o root -g root -m 644 debian/lintian.overrides `pwd`/debian/rioutil/usr/share/lintian/overrides/rioutil
+	install -o root -g root -m 644 -D debian/rio.rules debian/rioutil/lib/udev/rules.d/45-rio.rules
 
 
 
