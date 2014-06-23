@@ -491,7 +491,7 @@ static int return_intrn_info_rio(rios_t *rio) {
   /*
     memory
   */
-  for (i = 0 ; info->memory[i].size && i < MAX_MEM_UNITS ; i++)
+  for (i = 0 ; (i < MAX_MEM_UNITS) && info->memory[i].size; i++)
     info->total_memory_units++;
 
   UNLOCK(URIO_SUCCESS);
