@@ -1,3 +1,13 @@
+rioutil (1.5.0-1mcrowe8) unstable; urgency=low
+
+  * Stop provoking undefined behaviour to fix storage scanning with
+    newer versions of gcc
+  * Fix Unicode tag handling
+  * Support UTF-8 tags on players that can handle them
+  * Increase timeout on format
+
+ -- Mike Crowe <mac@mcrowe.com>  Wed, 2 Jul 2014 06:26:00 +0100
+
 rioutil (1.5.0-1mcrowe6) unstable; urgency=low
   * Install udev rules
 
