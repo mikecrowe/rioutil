@@ -371,6 +371,13 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	iconv_t ic = iconv_open(out_encoding, encoding);
 	iconv(ic, &tag_temp, &length, &dstp, &out_length);
 	iconv_close(ic);
+
+	// iconv isn't guaranteed to terminate its output (and may
+	// leave unwanted characters immediately after the output) so
+	// we must forcibly terminate it. The original out_length
+	// always left room for a terminator afterwards so we can just
+	// append it anyway.
+	*dstp = 0;
 #else // !HAVE_ICONV
 	if (out_length > length) {
 	  out_length = length;

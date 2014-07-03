@@ -39,6 +39,14 @@ struct File files[] =
 	"More Or Less 20121029 Predicting L'Aquila Earthquake: is it rig", "More Or Less",
 	"More Or Less 20121029 Predicting L'Aquila Earthquake: is it rig", "More Or Less",
     },
+    /// iconv tends to leave an extra character on the end of the
+    /// Latin-1 version of this. This test ensures that we terminate
+    /// the string at the right point.
+    {
+	"The_Phone_20101214_All_Night_Café.mp3",
+	"The Phone 20101214 All Night Café", "The Phone",
+	"The Phone 20101214 All Night Caf\xe9", "The Phone"
+    },
 };
 const file_count = sizeof(files)/sizeof(files[0]);
 
