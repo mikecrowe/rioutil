@@ -63,8 +63,8 @@ int main()
 	check("UTF8-artist", info.artist, f->utf8_artist);
 
 	get_id3_info((char *)f->filename, &info, "ISO-8859-1//TRANSLIT");
-	check("UTF8-title", info.title, f->latin1_title);
-	check("UTF8-artist", info.artist, f->latin1_artist);
+	check("LATIN1-title", info.title, f->latin1_title);
+	check("LATIN1-artist", info.artist, f->latin1_artist);
     }
 
     return errors;
