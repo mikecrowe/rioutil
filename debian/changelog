@@ -1,3 +1,10 @@
+rioutil (1.5.0-1mcrowe9) unstable; urgency=low
+
+  * Correctly terminate response from iconv. This avoids problems with
+    converting Unicode tags to Latin-1 for players that lack Unicode support.
+
+ -- Mike Crowe <mac@mcrowe.com>  Fri, 4 Jul 2014 12:48:00 +0100
+
 rioutil (1.5.0-1mcrowe8) unstable; urgency=low
 
   * Stop provoking undefined behaviour to fix storage scanning with
