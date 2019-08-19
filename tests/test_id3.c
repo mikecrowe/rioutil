@@ -29,6 +29,12 @@ struct File files[] =
 	"µSD £500 ©2001ばんごはん。", "Café être",
 	"\xb5""SD \xa3""500 \xa9""2001??????", "Caf\xe9 \xeatre"
     },
+    // MP3 file with IDV2.4 UTF-8 TIT2 tag
+    {
+	"utf8.mp3",
+	"13 Minutes To The Moon 20190515 Ep.01 ‘We Choose To Go’", "13 Minutes To The Moon",
+	"13 Minutes To The Moon 20190515 Ep.01 'We Choose To Go'", "13 Minutes To The Moon",
+    },
     {
 	"latin1.mp3",
 	"Café", "£500",
