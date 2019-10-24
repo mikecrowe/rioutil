@@ -54,7 +54,7 @@ struct File files[] =
 	"The Phone 20101214 All Night Caf\xe9", "The Phone"
     },
 };
-const file_count = sizeof(files)/sizeof(files[0]);
+const size_t file_count = sizeof(files)/sizeof(files[0]);
 
 int main()
 {
