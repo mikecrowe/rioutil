@@ -25,9 +25,19 @@ struct File
 struct File files[] =
 {
     {
-	"unicode.mp3",
+	"utf16le-bom.mp3",
 	"µSD £500 ©2001ばんごはん。", "Café être",
 	"\xb5""SD \xa3""500 \xa9""2001??????", "Caf\xe9 \xeatre"
+    },
+    {
+	"utf16be-bom.mp3",
+	"µSD £500 ©2001ばんごはん。", "Café être",
+	"\xb5""SD \xa3""500 \xa9""2001??????", "Caf\xe9 \xeatre"
+    },
+    {
+	"utf16be-nobom.mp3",
+	"@µSD £500 ©2001ばんごはん。", "@Café être",
+	"@\xb5""SD \xa3""500 \xa9""2001??????", "@Caf\xe9 \xeatre"
     },
     // MP3 file with IDV2.4 UTF-8 TIT2 tag
     {
