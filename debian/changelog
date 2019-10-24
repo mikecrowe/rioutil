@@ -1,3 +1,10 @@
+rioutil (1.5.0-1mcrowe10) unstable; urgency=low
+
+  * Fix various ID3v2 character encoding bugs and add tests. In particular
+    UTF-8-encoded tags are now interpreted correctly.
+
+ -- Mike Crowe <mac@mcrowe.com>  Thu, 24 Oct 2019 17:26:00 +0100
+
 rioutil (1.5.0-1mcrowe9) unstable; urgency=low
 
   * Correctly terminate response from iconv. This avoids problems with
