@@ -291,31 +291,36 @@ static void one_pass_parse_id3 (FILE *fh, unsigned char *tag_data, int tag_datal
 	tag_temp++;
 	break;
       case 0x01:
-	sprintf (encoding, "UTF-16LE");
+        // UTF-16 with BOM
 
 	// Skip BOM
-	if (length > 2 && tag_temp[1] == 0xff && tag_temp[2] == 0xfe) {
-	  length -= 2;
-	  tag_temp += 3;
-	} else
-	    tag_temp ++;
+        if (length > 2 && tag_temp[1] == 0xff && tag_temp[2] == 0xfe) {
+          sprintf (encoding, "UTF-16LE");
+          length -= 2;
+          tag_temp += 3;
+        } else if (length > 2 && tag_temp[1] == 0xfe && tag_temp[2] == 0xff) {
+          sprintf (encoding, "UTF-16BE");
+          length -= 2;
+          tag_temp += 3;
+        } else {
+          // No BOM? Assume little endian then
+          sprintf (encoding, "UTF-16LE");
+          tag_temp ++;
+        }
 	break;
+      case 0x02:
+        sprintf (encoding, "UTF-16BE");
+        tag_temp++;
+        break;
       case 0x03:
-	sprintf (encoding, "UTF-16BE");
-
-	// Skip BOM
-	if (length > 2 && tag_temp[1] == 0xfe && tag_temp[2] == 0xff) {
-	  length -=2;
-	  tag_temp += 3;
-	} else
-	    tag_temp ++;
-	break;
-      case 0x04:
 	sprintf (encoding, "UTF-8");
 	tag_temp++;
 	break;
       default:
+        // If it's anything else then just assume it's Latin-1
 	sprintf (encoding, "ISO-8859-1");
+        tag_temp++;
+        break;
       }
 
       if (length <= 0)

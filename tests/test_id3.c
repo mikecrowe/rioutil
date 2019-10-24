@@ -32,8 +32,8 @@ struct File files[] =
     // MP3 file with IDV2.4 UTF-8 TIT2 tag
     {
 	"utf8.mp3",
-	"13 Minutes To The Moon 20190515 Ep.01 ‘We Choose To Go’", "13 Minutes To The Moon",
-	"13 Minutes To The Moon 20190515 Ep.01 'We Choose To Go'", "13 Minutes To The Moon",
+	"13 Minutes To The Moon 20190703 Ep.08 ‘We’re Go For Powered", "13 Minutes To The Moon",
+	"13 Minutes To The Moon 20190703 Ep.08 'We're Go For Powered Des", "13 Minutes To The Moon",
     },
     {
 	"latin1.mp3",
