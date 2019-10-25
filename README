@@ -1,3 +1,27 @@
+This project was originally created by Nathan Hjelm. I created this
+Git repository from v1.4.4 before the upstream project moved to Git. I
+then fixed a few bugs, added support for Unicode tags and for writing
+Unicode tags to S-series and later players (provided they are running
+new enough firmware.)
+
+I haven't tested on anything but a Rio S50 because I don't regularly
+use anything else. (I do have a Rio S30, but don't use it.)
+
+Nathan made various changes after I created my fork. You can find them
+at https://github.com/hjelmn/rioutil and it may work better on the
+Cirrus-based Rio models (600, 800, 900, Nike and Riot.)
+
+Note that 2004 Rio player models (Rio Forge, Rio Carbon, ce2100) are
+just mass storage devices using FAT, so you don't need any special
+host software for them.
+
+The Rio Karma is a mass storage device but it uses a special
+filesystem. See http://linux-karma.sourceforge.net/Karma-HOWTO.html
+for advice. Its spiritual successor, the Trekstor Vibez is a standard
+mass storage device using FAT.
+
+Nathan's original README now follows.
+
 rioutil Supported Players:
  - Rio 600 (all sizes)
  - Rio 800 (all sizes)
