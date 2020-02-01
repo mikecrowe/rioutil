@@ -1,3 +1,9 @@
+rioutil (1.5.0-1mcrowe11) unstable; urgency=low
+
+  * Fix duration calculation for MP3 files over ~71.5MiB long.
+
+ -- Mike Crowe <mac@mcrowe.com>  Thu, 1 Feb 2020 16:37:00 +0000
+
 rioutil (1.5.0-1mcrowe10) unstable; urgency=low
 
   * Fix various ID3v2 character encoding bugs and add tests. In particular
