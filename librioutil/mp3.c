@@ -354,7 +354,7 @@ static int mp3_scan (struct mp3_file *mp3) {
     }
 
     if (frames == FRAME_COUNT) {
-      frames = (int)((double)((mp3->data_size - mp3->tagv2_size) * FRAME_COUNT) / (double)total_framesize);
+      frames = (int)(((double)(mp3->data_size - mp3->tagv2_size) * FRAME_COUNT) / (double)total_framesize);
       total_framesize = mp3->data_size - mp3->tagv2_size;
     }
 
